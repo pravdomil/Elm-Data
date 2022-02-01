@@ -12,6 +12,34 @@ Algorithm is inspired by [universally unique identifier (UUID)][uuid].
 
 import Bitwise
 import ID
+import JavaScript
+import Json.Decode
+import Json.Encode
+import Task
+
+
+generate : Task.Task JavaScript.Error (ID.ID a)
+generate =
+    JavaScript.run
+        "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return a })()"
+        Json.Encode.null
+        (Json.Decode.map5
+            fromIntegers
+            (Json.Decode.index 0 Json.Decode.int)
+            (Json.Decode.index 1 Json.Decode.int)
+            (Json.Decode.index 2 Json.Decode.int)
+            (Json.Decode.index 3 Json.Decode.int)
+            (Json.Decode.index 4 Json.Decode.int)
+            |> Json.Decode.andThen
+                (\v ->
+                    case v of
+                        Just v2 ->
+                            Json.Decode.succeed v2
+
+                        Nothing ->
+                            Json.Decode.fail "Cannot decode ID."
+                )
+        )
 
 
 fromIntegers : Int -> Int -> Int -> Int -> Int -> Maybe (ID.ID a)
