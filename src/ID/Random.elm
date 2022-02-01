@@ -1,21 +1,44 @@
-module Base32 exposing (..)
+module ID.Random exposing (..)
 
 import Bitwise
+import ID
+
+
+{-| Generate 125-bit random ID.
+
+ID is 25 characters long and is encoded using 5-bit characters.
+
+Algorithm is inspired by [universally unique identifier (UUID)][uuid].
+
+[uuid]: https://en.wikipedia.org/wiki/Universally_unique_identifier
+
+-}
+fromIntegers : Int -> Int -> Int -> Int -> Int -> Maybe (ID.ID a)
+fromIntegers a1 a2 a3 a4 a5 =
+    [ convert30BitsTo6Chars a1
+    , convert30BitsTo6Chars a2
+    , convert30BitsTo6Chars a3
+    , convert30BitsTo6Chars a4
+    , [ convert5BitsTo1Char a5 ]
+    ]
+        |> List.concat
+        |> String.fromList
+        |> ID.fromString
 
 
 convert30BitsTo6Chars : Int -> List Char
 convert30BitsTo6Chars a =
-    [ a |> Bitwise.shiftRightBy (5 * 0) |> convert5BitsToChar
-    , a |> Bitwise.shiftRightBy (5 * 1) |> convert5BitsToChar
-    , a |> Bitwise.shiftRightBy (5 * 2) |> convert5BitsToChar
-    , a |> Bitwise.shiftRightBy (5 * 3) |> convert5BitsToChar
-    , a |> Bitwise.shiftRightBy (5 * 4) |> convert5BitsToChar
-    , a |> Bitwise.shiftRightBy (5 * 5) |> convert5BitsToChar
+    [ a |> Bitwise.shiftRightBy (5 * 0) |> convert5BitsTo1Char
+    , a |> Bitwise.shiftRightBy (5 * 1) |> convert5BitsTo1Char
+    , a |> Bitwise.shiftRightBy (5 * 2) |> convert5BitsTo1Char
+    , a |> Bitwise.shiftRightBy (5 * 3) |> convert5BitsTo1Char
+    , a |> Bitwise.shiftRightBy (5 * 4) |> convert5BitsTo1Char
+    , a |> Bitwise.shiftRightBy (5 * 5) |> convert5BitsTo1Char
     ]
 
 
-convert5BitsToChar : Int -> Char
-convert5BitsToChar a =
+convert5BitsTo1Char : Int -> Char
+convert5BitsTo1Char a =
     case a |> Bitwise.and 31 of
         0 ->
             '0'
