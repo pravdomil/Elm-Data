@@ -1,9 +1,5 @@
 module ID.Random exposing (..)
 
-import Bitwise
-import ID
-
-
 {-| Generate 125-bit random ID.
 
 ID is 25 characters long and is encoded using 5-bit characters.
@@ -13,6 +9,11 @@ Algorithm is inspired by [universally unique identifier (UUID)][uuid].
 [uuid]: https://en.wikipedia.org/wiki/Universally_unique_identifier
 
 -}
+
+import Bitwise
+import ID
+
+
 fromIntegers : Int -> Int -> Int -> Int -> Int -> Maybe (ID.ID a)
 fromIntegers a1 a2 a3 a4 a5 =
     [ convert30BitsTo6Chars a1
