@@ -1,3 +1,6 @@
 {
-  "name": "elm-id"
+  "name": "elm-id",
+  "devDependencies": {
+    "elm-ffi": "github:pravdomil/elm-ffi"
+  }
 }
