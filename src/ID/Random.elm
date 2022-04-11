@@ -18,7 +18,11 @@ import Json.Encode
 import Task
 
 
-generate : Task.Task JavaScript.Error (ID.ID a)
+type Error
+    = JavaScriptError JavaScript.Error
+
+
+generate : Task.Task Error (ID.ID a)
 generate =
     JavaScript.run
         "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return a })()"
@@ -31,6 +35,7 @@ generate =
             (Json.Decode.index 3 Json.Decode.int)
             (Json.Decode.index 4 Json.Decode.int)
         )
+        |> Task.mapError JavaScriptError
 
 
 fromIntegers : Int -> Int -> Int -> Int -> Int -> ID.ID a
