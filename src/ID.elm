@@ -1,4 +1,4 @@
-module ID exposing (ID, fromInt, fromString, toAny, toString)
+module ID exposing (ID, fromString, toAny, toString)
 
 
 type ID a
@@ -21,11 +21,6 @@ fromString a =
 
     else
         Nothing
-
-
-fromInt : Int -> ID a
-fromInt a =
-    String.fromInt a |> ID
 
 
 
