@@ -30,19 +30,10 @@ generate =
             (Json.Decode.index 2 Json.Decode.int)
             (Json.Decode.index 3 Json.Decode.int)
             (Json.Decode.index 4 Json.Decode.int)
-            |> Json.Decode.andThen
-                (\v ->
-                    case v of
-                        Just v2 ->
-                            Json.Decode.succeed v2
-
-                        Nothing ->
-                            Json.Decode.fail "Cannot decode ID."
-                )
         )
 
 
-fromIntegers : Int -> Int -> Int -> Int -> Int -> Maybe (ID.ID a)
+fromIntegers : Int -> Int -> Int -> Int -> Int -> ID.ID a
 fromIntegers a1 a2 a3 a4 a5 =
     [ convert30BitsTo6Chars a1
     , convert30BitsTo6Chars a2
