@@ -1,21 +1,21 @@
-module ID exposing (ID, fromString, toAny, toString)
+module Id exposing (Id, fromString, toAny, toString)
 
 
-type ID a
-    = ID String
+type Id a
+    = Id String
 
 
-fromString : String -> ID a
+fromString : String -> Id a
 fromString a =
-    ID a
+    Id a
 
 
 
 --
 
 
-toString : ID a -> String
-toString (ID a) =
+toString : Id a -> String
+toString (Id a) =
     a
 
 
@@ -23,6 +23,6 @@ toString (ID a) =
 --
 
 
-toAny : ID a -> ID b
-toAny (ID a) =
-    ID a
+toAny : Id a -> Id b
+toAny (Id a) =
+    Id a
