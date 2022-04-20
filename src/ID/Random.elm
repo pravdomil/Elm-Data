@@ -1,4 +1,4 @@
-module ID.Random exposing (..)
+module Id.Random exposing (..)
 
 {-| Generate 125-bit random ID.
 
@@ -11,7 +11,7 @@ Algorithm is inspired by [universally unique identifier (UUID)][uuid].
 -}
 
 import Bitwise
-import ID
+import Id
 import JavaScript
 import Json.Decode
 import Json.Encode
@@ -22,7 +22,7 @@ type Error
     = JavaScriptError JavaScript.Error
 
 
-generate : Task.Task Error (ID.ID a)
+generate : Task.Task Error (Id.Id a)
 generate =
     JavaScript.run
         "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return a })()"
@@ -38,7 +38,7 @@ generate =
         |> Task.mapError JavaScriptError
 
 
-fromIntegers : Int -> Int -> Int -> Int -> Int -> ID.ID a
+fromIntegers : Int -> Int -> Int -> Int -> Int -> Id.Id a
 fromIntegers a1 a2 a3 a4 a5 =
     [ convert30BitsTo6Chars a1
     , convert30BitsTo6Chars a2
@@ -48,7 +48,7 @@ fromIntegers a1 a2 a3 a4 a5 =
     ]
         |> List.concat
         |> String.fromList
-        |> ID.fromString
+        |> Id.fromString
 
 
 convert30BitsTo6Chars : Int -> List Char
