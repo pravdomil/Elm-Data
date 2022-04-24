@@ -1,5 +1,6 @@
 module Database exposing (..)
 
+import Codec
 import Dict.Any
 import Id
 
@@ -142,3 +143,15 @@ remove config toComparable id (Database index db) =
 removeMany : Config index a -> (index -> comparable) -> List (Id.Id a) -> Database index a -> Database index a
 removeMany config toComparable ids a =
     ids |> List.foldl (remove config toComparable) a
+
+
+
+--
+
+
+codec : Config index a -> (index -> comparable) -> Codec.Codec a -> Codec.Codec (Database index a)
+codec config toComparable a =
+    Codec.list a
+        |> Codec.map
+            (\v -> empty |> insertMany config toComparable v)
+            (\(Database _ db) -> db |> Dict.Any.values)
