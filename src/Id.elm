@@ -1,5 +1,7 @@
 module Id exposing (Id, fromString, toAny, toString)
 
+import Codec
+
 
 type Id a
     = Id String
@@ -26,3 +28,12 @@ toString (Id a) =
 toAny : Id a -> Id b
 toAny (Id a) =
     Id a
+
+
+
+--
+
+
+codec : Codec.Codec (Id a)
+codec =
+    Codec.string |> Codec.map fromString toString
