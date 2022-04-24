@@ -47,8 +47,8 @@ type alias Config index a =
     }
 
 
-update : Config index a -> (index -> comparable) -> a -> Database index a -> Database index a
-update config toComparable new (Database index db) =
+insert : Config index a -> (index -> comparable) -> a -> Database index a -> Database index a
+insert config toComparable new (Database index db) =
     let
         id : Id.Id a
         id =
@@ -107,9 +107,9 @@ update config toComparable new (Database index db) =
                 )
 
 
-updateMany : Config index a -> (index -> comparable) -> List a -> Database index a -> Database index a
-updateMany config toComparable docs a =
-    docs |> List.foldl (update config toComparable) a
+insertMany : Config index a -> (index -> comparable) -> List a -> Database index a -> Database index a
+insertMany config toComparable docs a =
+    docs |> List.foldl (insert config toComparable) a
 
 
 remove : Config index a -> (index -> comparable) -> Id.Id a -> Database index a -> Database index a
