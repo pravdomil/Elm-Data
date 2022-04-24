@@ -137,3 +137,8 @@ remove config toComparable id (Database index db) =
             Database
                 index
                 db
+
+
+removeMany : Config index a -> (index -> comparable) -> List (Id.Id a) -> Database index a -> Database index a
+removeMany config toComparable ids a =
+    ids |> List.foldl (remove config toComparable) a
