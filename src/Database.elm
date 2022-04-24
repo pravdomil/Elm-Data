@@ -107,8 +107,8 @@ update config toComparable new (Database index db) =
                 )
 
 
-remove : Config index a -> Id.Id a -> (index -> comparable) -> Database index a -> Database index a
-remove config id toComparable (Database index db) =
+remove : Config index a -> (index -> comparable) -> Id.Id a -> Database index a -> Database index a
+remove config toComparable id (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
