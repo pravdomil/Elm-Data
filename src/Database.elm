@@ -1,4 +1,4 @@
-module Database exposing (..)
+module Database exposing (Config, Database, codec, database, empty, insert, insertMany, readDocuments, readIds, remove, removeMany)
 
 import Codec
 import Dict.Any

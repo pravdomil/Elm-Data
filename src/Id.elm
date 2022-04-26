@@ -1,4 +1,4 @@
-module Id exposing (Id, fromString, toAny, toString)
+module Id exposing (Id, codec, fromString, toAny, toString)
 
 import Codec
 
