@@ -1,4 +1,4 @@
-module Id.Random exposing (..)
+module Id.Random exposing (Error(..), generate)
 
 {-| Generate 125-bit random ID.
 
