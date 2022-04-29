@@ -25,7 +25,7 @@ type Error
 generate : Task.Task Error (Id.Id a)
 generate =
     JavaScript.run
-        "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return a })()"
+        "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return Array.from(a) })()"
         Json.Encode.null
         (Json.Decode.map5
             fromIntegers
