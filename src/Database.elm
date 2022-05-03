@@ -31,9 +31,13 @@ readDocuments toComparable index_ ((Database _ db) as a) =
 readIds : (index -> comparable) -> index -> Database index a -> List (Id.Id a)
 readIds toComparable index_ (Database index _) =
     let
+        index__ : comparable
+        index__ =
+            toComparable index_
+
         toOrder : ( index, Id.Id a ) -> Order
         toOrder ( i, _ ) =
-            compare (toComparable i) (toComparable index_)
+            compare (toComparable i) index__
     in
     index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
 
