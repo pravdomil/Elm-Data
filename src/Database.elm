@@ -37,7 +37,7 @@ readIds toComparable index_ (Database index _) =
 
         toOrder : ( index, Id.Id a ) -> Order
         toOrder ( i, _ ) =
-            compare (toComparable i) index__
+            compare index__ (toComparable i)
     in
     index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
 
