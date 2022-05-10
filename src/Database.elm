@@ -1,4 +1,4 @@
-module Database exposing (Config, Database, codec, database, empty, insert, insertMany, readDocuments, readIds, remove, removeMany)
+module Database exposing (Config, Database, codec, documents, empty, insert, insertMany, readDocuments, readIds, remove, removeMany)
 
 import Codec
 import Dict.Any
@@ -14,8 +14,8 @@ empty =
     Database Dict.Any.empty Dict.Any.empty
 
 
-database : Database index a -> Dict.Any.Dict (Id.Id a) a
-database (Database _ db) =
+documents : Database index a -> Dict.Any.Dict (Id.Id a) a
+documents (Database _ db) =
     db
 
 
