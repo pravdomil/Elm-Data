@@ -3,6 +3,7 @@
     "source-directories": [
         "src",
         "node_modules/elm-ffi/src",
+        "node_modules/elm-ffi-node/src",
         "node_modules/elm-utils/src"
     ],
     "elm-version": "0.19.1",
