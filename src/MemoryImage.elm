@@ -52,29 +52,7 @@ update config updateFn msg (MemoryImage a) =
 
 load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage a)
 load config updateFn a =
-    let
-        imageAndMessages : Result Json.Decode.Error ( a, List msg )
-        imageAndMessages =
-            case String.split "\n" a of
-                [] ->
-                    Result.map2 Tuple.pair
-                        (Json.Decode.decodeString config.decoder a)
-                        (Ok [])
-
-                first :: rest ->
-                    Result.map2 Tuple.pair
-                        (Json.Decode.decodeString config.decoder first)
-                        (rest
-                            |> List.map (Json.Decode.decodeString config.msgDecoder)
-                            |> resultSequence
-                        )
-
-        replayMessages : ( a, List msg ) -> MemoryImage a
-        replayMessages ( image_, messages ) =
-            messages |> List.foldl updateFn image_ |> MemoryImage
-    in
-    imageAndMessages
-        |> Result.map replayMessages
+    decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
 
 save : Config msg a -> MemoryImage a -> Operation
@@ -89,6 +67,44 @@ save config (MemoryImage a) =
 type Operation
     = Overwrite String
     | Append String
+
+
+
+--
+
+
+type DiskImage msg a
+    = DiskImage a (List msg)
+
+
+diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage a
+diskImageToMemoryImage updateFn (DiskImage a messages) =
+    messages
+        |> List.foldl updateFn a
+        |> MemoryImage
+
+
+decodeDiskImage : Config msg a -> String -> Result Json.Decode.Error (DiskImage msg a)
+decodeDiskImage config a =
+    case String.split "\n" a of
+        [] ->
+            Err (Json.Decode.Failure "Cannot decode disk image." (Json.Encode.string a))
+
+        first :: rest ->
+            Result.map2 DiskImage
+                (Json.Decode.decodeString config.decoder first)
+                (rest
+                    |> List.map (Json.Decode.decodeString config.msgDecoder)
+                    |> resultSequence
+                )
+
+
+encodeDiskImage : Config msg a -> DiskImage msg a -> String
+encodeDiskImage config (DiskImage a messages) =
+    messages
+        |> List.map (config.encodeMsg >> Json.Encode.encode 0)
+        |> (::) (Json.Encode.encode 0 (config.encode a))
+        |> String.join "\n"
 
 
 
