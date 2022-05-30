@@ -79,7 +79,7 @@ load config updateFn a =
 
 save : Config msg a -> MemoryImage a -> Operation
 save config (MemoryImage a) =
-    OverWrite (a |> config.encode |> Json.Encode.encode 0)
+    Overwrite (a |> config.encode |> Json.Encode.encode 0)
 
 
 
@@ -87,7 +87,7 @@ save config (MemoryImage a) =
 
 
 type Operation
-    = OverWrite String
+    = Overwrite String
     | Append String
 
 
