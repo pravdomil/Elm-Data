@@ -4,11 +4,11 @@ import Json.Decode
 import Json.Encode
 
 
-type MemoryImage a
+type MemoryImage msg a
     = MemoryImage a
 
 
-image : MemoryImage a -> a
+image : MemoryImage msg a -> a
 image (MemoryImage a) =
     a
 
@@ -27,10 +27,10 @@ type alias Config msg a =
     }
 
 
-create : Config msg a -> a -> ( MemoryImage a, Operation )
+create : Config msg a -> a -> ( MemoryImage msg a, Operation )
 create config a =
     let
-        image_ : MemoryImage a
+        image_ : MemoryImage msg a
         image_ =
             MemoryImage a
     in
@@ -39,7 +39,7 @@ create config a =
     )
 
 
-load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage a)
+load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage msg a)
 load config updateFn a =
     decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
@@ -48,14 +48,14 @@ load config updateFn a =
 --
 
 
-update : Config msg a -> (msg -> a -> a) -> msg -> MemoryImage a -> ( MemoryImage a, Operation )
+update : Config msg a -> (msg -> a -> a) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Operation )
 update config updateFn msg (MemoryImage a) =
     ( MemoryImage (updateFn msg a)
     , Append (msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n")
     )
 
 
-save : Config msg a -> MemoryImage a -> Operation
+save : Config msg a -> MemoryImage msg a -> Operation
 save config (MemoryImage a) =
     Overwrite (a |> config.encode |> Json.Encode.encode 0)
 
@@ -77,7 +77,7 @@ type DiskImage msg a
     = DiskImage a (List msg)
 
 
-diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage a
+diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage msg a
 diskImageToMemoryImage updateFn (DiskImage a messages) =
     messages
         |> List.foldl updateFn a
