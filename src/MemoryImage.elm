@@ -39,20 +39,20 @@ create config a =
     )
 
 
-update : Config msg a -> (msg -> a -> a) -> msg -> MemoryImage a -> ( MemoryImage a, Operation )
-update config updateFn msg (MemoryImage a) =
-    ( MemoryImage (updateFn msg a)
-    , Append (msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n")
-    )
+load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage a)
+load config updateFn a =
+    decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
 
 
 --
 
 
-load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage a)
-load config updateFn a =
-    decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
+update : Config msg a -> (msg -> a -> a) -> msg -> MemoryImage a -> ( MemoryImage a, Operation )
+update config updateFn msg (MemoryImage a) =
+    ( MemoryImage (updateFn msg a)
+    , Append (msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n")
+    )
 
 
 save : Config msg a -> MemoryImage a -> Operation
