@@ -27,19 +27,19 @@ type alias Config msg a =
     }
 
 
-create : Config msg a -> a -> ( MemoryImage msg a, Operation )
-create config a =
+create : Config msg a -> (() -> ( a, Cmd msg )) -> ( MemoryImage msg a, Cmd msg, Operation )
+create config initFn =
     let
-        image_ : MemoryImage msg a
-        image_ =
-            MemoryImage a
+        ( image_, cmd ) =
+            initFn () |> Tuple.mapFirst MemoryImage
     in
     ( image_
+    , cmd
     , save config image_
     )
 
 
-load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage msg a)
+load : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> String -> Result Json.Decode.Error (MemoryImage msg a)
 load config updateFn a =
     decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
@@ -48,9 +48,14 @@ load config updateFn a =
 --
 
 
-update : Config msg a -> (msg -> a -> a) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Operation )
+update : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Cmd msg, Operation )
 update config updateFn msg (MemoryImage a) =
-    ( MemoryImage (updateFn msg a)
+    let
+        ( image_, cmd ) =
+            updateFn msg a |> Tuple.mapFirst MemoryImage
+    in
+    ( image_
+    , cmd
     , Append (msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n")
     )
 
@@ -77,10 +82,10 @@ type DiskImage msg a
     = DiskImage a (List msg)
 
 
-diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage msg a
+diskImageToMemoryImage : (msg -> a -> ( a, Cmd msg )) -> DiskImage msg a -> MemoryImage msg a
 diskImageToMemoryImage updateFn (DiskImage a messages) =
     messages
-        |> List.foldl updateFn a
+        |> List.foldl (\v1 v2 -> updateFn v1 v2 |> Tuple.first) a
         |> MemoryImage
 
 
