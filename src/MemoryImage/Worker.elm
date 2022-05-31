@@ -72,24 +72,51 @@ type alias Model msg a =
 type alias InitializedModel msg a =
     { image : MemoryImage.MemoryImage msg a
     , handle : FileSystem.Handle.Handle
-    , status : Status
-
-    --
-    , overwriteQueue : Maybe MemoryImage.OverwriteData
-    , appendQueue : List MemoryImage.AppendData
+    , queue : Queue
     }
 
 
 emptyInitializedModel : MemoryImage.MemoryImage msg a -> FileSystem.Handle.Handle -> InitializedModel msg a
 emptyInitializedModel image handle =
-    InitializedModel image handle Idle Nothing []
+    InitializedModel image handle (emptyQueue Idle)
 
 
 
 --
 
 
-type Status
+type alias Queue =
+    { status : QueueStatus
+    , overwrite : Maybe MemoryImage.OverwriteData
+    , append : List MemoryImage.AppendData
+    }
+
+
+emptyQueue : QueueStatus -> Queue
+emptyQueue status =
+    Queue status Nothing []
+
+
+queueChangeStatus : QueueStatus -> Queue -> Queue
+queueChangeStatus status a =
+    { a | status = status }
+
+
+queueOverwriteData : MemoryImage.OverwriteData -> Queue -> Queue
+queueOverwriteData data a =
+    { a | overwrite = Just data, append = [] }
+
+
+queueAppendData : MemoryImage.AppendData -> Queue -> Queue
+queueAppendData data a =
+    { a | append = data :: a.append }
+
+
+
+--
+
+
+type QueueStatus
     = Idle
     | Busy
 
@@ -166,8 +193,12 @@ update config msg model =
                                 image : MemoryImage.MemoryImage msg a
                                 image =
                                     MemoryImage.diskImageToMemoryImage config.update d
+
+                                nextModel : InitializedModel msg a
+                                nextModel =
+                                    emptyInitializedModel image handle
                             in
-                            ( Just (emptyInitializedModel image handle)
+                            ( Just nextModel
                             , sendMessage (config.gotFlags b |> GotMessage)
                             )
 
@@ -179,8 +210,9 @@ update config msg model =
                                 nextModel : InitializedModel msg a
                                 nextModel =
                                     emptyInitializedModel image handle
+                                        |> (\v -> { v | queue = queueOverwriteData data v.queue })
                             in
-                            ( Just { nextModel | overwriteQueue = Just data, appendQueue = [] }
+                            ( Just nextModel
                             , Cmd.batch
                                 [ cmd |> Cmd.map GotMessage
                                 , sendMessage (config.gotFlags b |> GotMessage)
@@ -203,8 +235,15 @@ update config msg model =
                     let
                         ( image, cmd, data ) =
                             MemoryImage.update config.image config.update b c.image
+
+                        nextModel : InitializedModel msg a
+                        nextModel =
+                            { c
+                                | image = image
+                                , queue = queueAppendData data c.queue
+                            }
                     in
-                    ( Just { c | image = image, appendQueue = data :: c.appendQueue }
+                    ( Just nextModel
                     , Cmd.batch
                         [ cmd |> Cmd.map GotMessage
                         , sendMessage DoQueue
@@ -219,19 +258,19 @@ update config msg model =
         DoQueue ->
             case model of
                 Just b ->
-                    case b.status of
+                    case b.queue.status of
                         Idle ->
                             let
                                 suffix : String
                                 suffix =
-                                    b.appendQueue
+                                    b.queue.append
                                         |> List.reverse
                                         |> List.map (\(MemoryImage.AppendData v) -> v)
                                         |> String.join ""
                             in
-                            case b.overwriteQueue of
+                            case b.queue.overwrite of
                                 Just (MemoryImage.OverwriteData c) ->
-                                    ( Just { b | status = Busy, overwriteQueue = Nothing, appendQueue = [] }
+                                    ( Just { b | queue = emptyQueue Busy }
                                     , FileSystem.Handle.truncate b.handle
                                         |> Task.andThen (FileSystem.Handle.write (c ++ suffix))
                                         |> Task.map (\_ -> ())
@@ -246,7 +285,7 @@ update config msg model =
                                         )
 
                                     else
-                                        ( Just { b | status = Busy, overwriteQueue = Nothing, appendQueue = [] }
+                                        ( Just { b | queue = emptyQueue Busy }
                                         , FileSystem.Handle.write suffix b.handle
                                             |> Task.map (\_ -> ())
                                             |> Task.mapError FileSystemError
@@ -268,17 +307,27 @@ update config msg model =
                 Just c ->
                     case b of
                         Ok _ ->
-                            ( Just { c | status = Idle }
+                            let
+                                nextModel : InitializedModel msg a
+                                nextModel =
+                                    { c | queue = queueChangeStatus Idle c.queue }
+                            in
+                            ( Just nextModel
                             , sendMessage DoQueue
                             )
 
                         Err d ->
                             let
-                                data : MemoryImage.OverwriteData
-                                data =
-                                    MemoryImage.save config.image c.image
+                                nextModel : InitializedModel msg a
+                                nextModel =
+                                    { c
+                                        | queue =
+                                            c.queue
+                                                |> queueChangeStatus Idle
+                                                |> queueOverwriteData (MemoryImage.save config.image c.image)
+                                    }
                             in
-                            ( Just { c | overwriteQueue = Just data, appendQueue = [] }
+                            ( Just nextModel
                             , Console.logError ("Cannot save memory image. See details:\n" ++ errorToString d)
                                 |> Task.attempt (\_ -> NoOperation)
                             )
@@ -291,12 +340,7 @@ update config msg model =
         SaveImage ->
             case model of
                 Just b ->
-                    let
-                        data : MemoryImage.OverwriteData
-                        data =
-                            MemoryImage.save config.image b.image
-                    in
-                    ( Just { b | overwriteQueue = Just data, appendQueue = [] }
+                    ( Just { b | queue = queueOverwriteData (MemoryImage.save config.image b.image) b.queue }
                     , sendMessage DoQueue
                     )
 
