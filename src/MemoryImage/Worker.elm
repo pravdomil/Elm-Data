@@ -1,10 +1,9 @@
-module MemoryImage.Worker exposing (Config, Error(..), worker)
+module MemoryImage.Worker exposing (Config, worker)
 
 import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
-import Json.Decode
 import MemoryImage
 import Process.Extra
 import Task
@@ -23,25 +22,6 @@ type alias Config flags msg a =
     --
     , gotFlags : flags -> msg
     }
-
-
-
---
-
-
-type Error
-    = DecodeError Json.Decode.Error
-    | FileSystemError JavaScript.Error
-
-
-errorToString : Error -> String
-errorToString a =
-    case a of
-        DecodeError b ->
-            Json.Decode.errorToString b
-
-        FileSystemError b ->
-            JavaScript.errorToString b
 
 
 
@@ -150,7 +130,7 @@ init config flags =
     )
 
 
-getDiskImage : Config flags msg a -> Task.Task Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
+getDiskImage : Config flags msg a -> Task.Task JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
 getDiskImage config =
     let
         mode : FileSystem.Handle.Mode
@@ -162,11 +142,9 @@ getDiskImage config =
                 FileSystem.Handle.Append
     in
     FileSystem.Handle.open mode config.imagePath
-        |> Task.mapError FileSystemError
         |> Task.andThen
             (\v ->
                 FileSystem.Handle.read v
-                    |> Task.mapError FileSystemError
                     |> Task.andThen
                         (\v2 ->
                             case v2 of
@@ -176,7 +154,7 @@ getDiskImage config =
                                 _ ->
                                     MemoryImage.decodeDiskImage config.image v2
                                         |> resultToTask
-                                        |> Task.mapError DecodeError
+                                        |> Task.mapError JavaScript.DecodeError
                                         |> Task.map Just
                         )
                     |> Task.map
@@ -191,10 +169,10 @@ getDiskImage config =
 
 
 type Msg flags msg a
-    = GotDiskImage flags (Result Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) ))
+    = GotDiskImage flags (Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) ))
     | GotMessage msg
     | DoQueue
-    | QueueDone (Result Error ())
+    | QueueDone (Result JavaScript.Error ())
     | SaveImage
     | ProcessExit
     | NoOperation
@@ -243,7 +221,7 @@ update config msg model =
                     , Cmd.batch
                         [ Process.Extra.exit 1
                             |> Task.attempt (\_ -> NoOperation)
-                        , Console.logError ("Cannot load memory image. See details:\n" ++ errorToString d)
+                        , Console.logError ("Cannot load memory image. See details:\n" ++ JavaScript.errorToString d)
                             |> Task.attempt (\_ -> NoOperation)
                         ]
                     )
@@ -310,7 +288,6 @@ update config msg model =
                                         FileSystem.Handle.write suffix b.handle
                                   )
                                     |> Task.map (\_ -> ())
-                                    |> Task.mapError FileSystemError
                                     |> Task.attempt QueueDone
                                 )
 
@@ -360,7 +337,7 @@ update config msg model =
                                     }
                             in
                             ( Just nextModel
-                            , Console.logError ("Cannot save memory image. See details:\n" ++ errorToString d)
+                            , Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
                                 |> Task.attempt (\_ -> NoOperation)
                             )
 
