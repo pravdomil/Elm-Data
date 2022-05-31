@@ -5,6 +5,7 @@ import FileSystem
 import FileSystem.Handle
 import JavaScript
 import MemoryImage
+import Process
 import Process.Extra
 import Task
 import Time
@@ -337,8 +338,12 @@ update config msg model =
                                     }
                             in
                             ( Just nextModel
-                            , Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
-                                |> Task.attempt (\_ -> NoOperation)
+                            , Cmd.batch
+                                [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
+                                    |> Task.attempt (\_ -> NoOperation)
+                                , Process.sleep (10 * 1000)
+                                    |> Task.perform (\_ -> DoQueue)
+                                ]
                             )
 
                 Nothing ->
