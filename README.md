@@ -1,6 +1,6 @@
 # Elm Data
 
-Database for Elm.
+[Memory image](https://martinfowler.com/bliki/MemoryImage.html) implementation and database for Elm.
 
 ## Install & Usage
 
