@@ -21,7 +21,6 @@ type alias Config flags msg a =
     , subscriptions : a -> Sub msg
 
     --
-    , imageSaveError : Error -> msg
     , gotFlags : flags -> msg
     }
 
@@ -37,14 +36,12 @@ type Error
 
 errorToString : Error -> String
 errorToString a =
-    "Cannot load memory image. See details:\n"
-        ++ (case a of
-                DecodeError b ->
-                    Json.Decode.errorToString b
+    case a of
+        DecodeError b ->
+            Json.Decode.errorToString b
 
-                FileSystemError b ->
-                    JavaScript.errorToString b
-           )
+        FileSystemError b ->
+            JavaScript.errorToString b
 
 
 
@@ -195,7 +192,7 @@ update config msg model =
                     , Cmd.batch
                         [ Process.Extra.exit 1
                             |> Task.attempt (\_ -> NoOperation)
-                        , Console.logError (errorToString d)
+                        , Console.logError ("Cannot load memory image. See details:\n" ++ errorToString d)
                             |> Task.attempt (\_ -> NoOperation)
                         ]
                     )
@@ -269,14 +266,22 @@ update config msg model =
         QueueDone b ->
             case model of
                 Just c ->
-                    ( Just { c | status = Idle }
-                    , case b of
+                    case b of
                         Ok _ ->
-                            sendMessage DoQueue
+                            ( Just { c | status = Idle }
+                            , sendMessage DoQueue
+                            )
 
                         Err d ->
-                            sendMessage (config.imageSaveError d |> GotMessage)
-                    )
+                            let
+                                data : MemoryImage.OverwriteData
+                                data =
+                                    MemoryImage.save config.image c.image
+                            in
+                            ( Just { c | overwriteQueue = Just data, appendQueue = [] }
+                            , Console.logError ("Cannot save memory image. See details:\n" ++ errorToString d)
+                                |> Task.attempt (\_ -> NoOperation)
+                            )
 
                 Nothing ->
                     ( model
