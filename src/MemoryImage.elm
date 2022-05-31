@@ -1,4 +1,4 @@
-module MemoryImage exposing (Config, MemoryImage, Operation(..), create, image, load, save, update)
+module MemoryImage exposing (AppendData(..), Config, MemoryImage, OverwriteData(..), create, image, load, save, update)
 
 import Json.Decode
 import Json.Encode
@@ -27,7 +27,7 @@ type alias Config msg a =
     }
 
 
-create : Config msg a -> (() -> ( a, Cmd msg )) -> ( MemoryImage msg a, Cmd msg, Operation )
+create : Config msg a -> (() -> ( a, Cmd msg )) -> ( MemoryImage msg a, Cmd msg, OverwriteData )
 create config initFn =
     let
         ( image_, cmd ) =
@@ -48,7 +48,7 @@ load config updateFn a =
 --
 
 
-update : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Cmd msg, Operation )
+update : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Cmd msg, AppendData )
 update config updateFn msg (MemoryImage a) =
     let
         ( image_, cmd ) =
@@ -56,22 +56,29 @@ update config updateFn msg (MemoryImage a) =
     in
     ( image_
     , cmd
-    , Append (msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n")
+    , msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n" |> AppendData
     )
 
 
-save : Config msg a -> MemoryImage msg a -> Operation
+save : Config msg a -> MemoryImage msg a -> OverwriteData
 save config (MemoryImage a) =
-    Overwrite (a |> config.encode |> Json.Encode.encode 0)
+    DiskImage a [] |> encodeDiskImage config |> OverwriteData
 
 
 
 --
 
 
-type Operation
-    = Overwrite String
-    | Append String
+type AppendData
+    = AppendData String
+
+
+
+--
+
+
+type OverwriteData
+    = OverwriteData String
 
 
 
