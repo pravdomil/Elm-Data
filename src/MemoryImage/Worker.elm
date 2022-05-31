@@ -72,13 +72,23 @@ type alias Model msg a =
 type alias InitializedModel msg a =
     { image : MemoryImage.MemoryImage msg a
     , handle : FileSystem.Handle.Handle
+    , status : Status
     , queue : Queue
     }
 
 
 emptyInitializedModel : MemoryImage.MemoryImage msg a -> FileSystem.Handle.Handle -> InitializedModel msg a
 emptyInitializedModel image handle =
-    InitializedModel image handle (emptyQueue Idle)
+    InitializedModel image handle Running (emptyQueue Idle)
+
+
+
+--
+
+
+type Status
+    = Running
+    | Exiting
 
 
 
@@ -95,6 +105,11 @@ type alias Queue =
 emptyQueue : QueueStatus -> Queue
 emptyQueue status =
     Queue status Nothing []
+
+
+queueIsEmpty : Queue -> Bool
+queueIsEmpty a =
+    a.overwrite == Nothing && a.append == []
 
 
 queueChangeStatus : QueueStatus -> Queue -> Queue
@@ -128,7 +143,10 @@ type QueueStatus
 init : Config flags msg a -> flags -> ( Model msg a, Cmd (Msg flags msg a) )
 init config flags =
     ( Nothing
-    , getDiskImage config |> Task.attempt (GotDiskImage flags)
+    , Cmd.batch
+        [ getDiskImage config |> Task.attempt (GotDiskImage flags)
+        , Process.Extra.onExit ProcessExit
+        ]
     )
 
 
@@ -178,6 +196,7 @@ type Msg flags msg a
     | DoQueue
     | QueueDone (Result Error ())
     | SaveImage
+    | ProcessExit
     | NoOperation
 
 
@@ -232,23 +251,30 @@ update config msg model =
         GotMessage b ->
             case model of
                 Just c ->
-                    let
-                        ( image, cmd, data ) =
-                            MemoryImage.update config.image config.update b c.image
+                    case c.status of
+                        Running ->
+                            let
+                                ( image, cmd, data ) =
+                                    MemoryImage.update config.image config.update b c.image
 
-                        nextModel : InitializedModel msg a
-                        nextModel =
-                            { c
-                                | image = image
-                                , queue = queueAppendData data c.queue
-                            }
-                    in
-                    ( Just nextModel
-                    , Cmd.batch
-                        [ cmd |> Cmd.map GotMessage
-                        , sendMessage DoQueue
-                        ]
-                    )
+                                nextModel : InitializedModel msg a
+                                nextModel =
+                                    { c
+                                        | image = image
+                                        , queue = queueAppendData data c.queue
+                                    }
+                            in
+                            ( Just nextModel
+                            , Cmd.batch
+                                [ cmd |> Cmd.map GotMessage
+                                , sendMessage DoQueue
+                                ]
+                            )
+
+                        Exiting ->
+                            ( model
+                            , Cmd.none
+                            )
 
                 Nothing ->
                     ( model
@@ -260,37 +286,33 @@ update config msg model =
                 Just b ->
                     case b.queue.status of
                         Idle ->
-                            let
-                                suffix : String
-                                suffix =
-                                    b.queue.append
-                                        |> List.reverse
-                                        |> List.map (\(MemoryImage.AppendData v) -> v)
-                                        |> String.join ""
-                            in
-                            case b.queue.overwrite of
-                                Just (MemoryImage.OverwriteData c) ->
-                                    ( Just { b | queue = emptyQueue Busy }
-                                    , FileSystem.Handle.truncate b.handle
-                                        |> Task.andThen (FileSystem.Handle.write (c ++ suffix))
-                                        |> Task.map (\_ -> ())
-                                        |> Task.mapError FileSystemError
-                                        |> Task.attempt QueueDone
-                                    )
+                            if queueIsEmpty b.queue then
+                                ( model
+                                , Cmd.none
+                                )
 
-                                Nothing ->
-                                    if suffix == "" then
-                                        ( model
-                                        , Cmd.none
-                                        )
+                            else
+                                let
+                                    suffix : String
+                                    suffix =
+                                        b.queue.append
+                                            |> List.reverse
+                                            |> List.map (\(MemoryImage.AppendData v) -> v)
+                                            |> String.join ""
+                                in
+                                ( Just { b | queue = emptyQueue Busy }
+                                , (case b.queue.overwrite of
+                                    Just c ->
+                                        FileSystem.Handle.truncate b.handle
+                                            |> Task.andThen (FileSystem.Handle.write ((\(MemoryImage.OverwriteData v) -> v) c ++ suffix))
 
-                                    else
-                                        ( Just { b | queue = emptyQueue Busy }
-                                        , FileSystem.Handle.write suffix b.handle
-                                            |> Task.map (\_ -> ())
-                                            |> Task.mapError FileSystemError
-                                            |> Task.attempt QueueDone
-                                        )
+                                    Nothing ->
+                                        FileSystem.Handle.write suffix b.handle
+                                  )
+                                    |> Task.map (\_ -> ())
+                                    |> Task.mapError FileSystemError
+                                    |> Task.attempt QueueDone
+                                )
 
                         Busy ->
                             ( model
@@ -313,7 +335,17 @@ update config msg model =
                                     { c | queue = queueChangeStatus Idle c.queue }
                             in
                             ( Just nextModel
-                            , sendMessage DoQueue
+                            , case nextModel.status of
+                                Running ->
+                                    sendMessage DoQueue
+
+                                Exiting ->
+                                    if queueIsEmpty nextModel.queue then
+                                        Process.Extra.exit 0
+                                            |> Task.attempt (\_ -> NoOperation)
+
+                                    else
+                                        sendMessage DoQueue
                             )
 
                         Err d ->
@@ -335,6 +367,19 @@ update config msg model =
                 Nothing ->
                     ( model
                     , Cmd.none
+                    )
+
+        ProcessExit ->
+            case model of
+                Just b ->
+                    ( Just { b | status = Exiting, queue = queueOverwriteData (MemoryImage.save config.image b.image) b.queue }
+                    , sendMessage DoQueue
+                    )
+
+                Nothing ->
+                    ( model
+                    , Process.Extra.exit 0
+                        |> Task.attempt (\_ -> NoOperation)
                     )
 
         SaveImage ->
