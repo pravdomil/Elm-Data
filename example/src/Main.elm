@@ -52,8 +52,8 @@ init () =
 
 
 type Msg
-    = IncreaseCounter
-    | GotFlags ()
+    = GotFlags ()
+    | IncreaseCounter
     | NoOperation
 
 
@@ -62,17 +62,17 @@ msgCodec =
     Codec.custom
         (\fn1 fn2 fn3 v ->
             case v of
-                IncreaseCounter ->
-                    fn1
-
                 GotFlags v1 ->
-                    fn2 v1
+                    fn1 v1
+
+                IncreaseCounter ->
+                    fn2
 
                 NoOperation ->
                     fn3
         )
-        |> Codec.variant0 "IncreaseCounter" IncreaseCounter
         |> Codec.variant1 "GotFlags" GotFlags (Codec.succeed ())
+        |> Codec.variant0 "IncreaseCounter" IncreaseCounter
         |> Codec.variant0 "NoOperation" NoOperation
         |> Codec.buildCustom
 
@@ -80,6 +80,11 @@ msgCodec =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GotFlags _ ->
+            ( model
+            , Cmd.none
+            )
+
         IncreaseCounter ->
             let
                 nextModel : Model
@@ -89,11 +94,6 @@ update msg model =
             ( nextModel
             , Console.log (String.fromInt nextModel.counter)
                 |> Task.attempt (\_ -> NoOperation)
-            )
-
-        GotFlags _ ->
-            ( model
-            , Cmd.none
             )
 
         NoOperation ->
