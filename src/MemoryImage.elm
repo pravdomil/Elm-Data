@@ -1,4 +1,4 @@
-module MemoryImage exposing (AppendData(..), Config, MemoryImage, OverwriteData(..), create, image, load, save, update)
+module MemoryImage exposing (AppendData(..), Config, DiskImage, MemoryImage, OverwriteData(..), create, decodeDiskImage, diskImageToMemoryImage, encodeDiskImage, image, load, save, update)
 
 import Json.Decode
 import Json.Encode
