@@ -18,11 +18,11 @@ image (MemoryImage a) =
 
 
 type alias Config msg a =
-    { encode : a -> Json.Decode.Value
+    { encoder : a -> Json.Decode.Value
     , decoder : Json.Decode.Decoder a
 
     --
-    , encodeMsg : msg -> Json.Decode.Value
+    , msgEncoder : msg -> Json.Decode.Value
     , msgDecoder : Json.Decode.Decoder msg
     }
 
@@ -56,7 +56,7 @@ update config updateFn msg (MemoryImage a) =
     in
     ( image_
     , cmd
-    , msg |> config.encodeMsg |> Json.Encode.encode 0 |> (++) "\n" |> AppendData
+    , msg |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n" |> AppendData
     )
 
 
@@ -114,8 +114,8 @@ decodeDiskImage config a =
 encodeDiskImage : Config msg a -> DiskImage msg a -> String
 encodeDiskImage config (DiskImage a messages) =
     messages
-        |> List.map (config.encodeMsg >> Json.Encode.encode 0)
-        |> (::) (Json.Encode.encode 0 (config.encode a))
+        |> List.map (config.msgEncoder >> Json.Encode.encode 0)
+        |> (::) (Json.Encode.encode 0 (config.encoder a))
         |> String.join "\n"
 
 
