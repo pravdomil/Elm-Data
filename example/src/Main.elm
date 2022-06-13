@@ -110,20 +110,8 @@ update msg model =
             )
 
         ProcessExit ->
-            let
-                ( image, cmd ) =
-                    case model.image of
-                        Just c ->
-                            MemoryImage.FileSystem.close c
-                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
-
-                        Nothing ->
-                            ( Nothing
-                            , Cmd.none
-                            )
-            in
-            ( { model | status = Exiting, image = image }
-            , cmd
+            ( { model | status = Exiting }
+            , MemoryImage.FileSystem.close |> Cmd.map GotMemoryImageMsg
             )
 
         NoOperation ->
