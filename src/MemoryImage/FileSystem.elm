@@ -78,11 +78,9 @@ update updateFn msg (Image a) =
     )
 
 
-close : Image msg a -> ( Image msg a, Cmd Msg )
-close (Image a) =
-    ( Image { a | status = Exiting, queue = queueAddSaveImage (MemoryImage.save a.image) }
-    , sendMessage DoQueue
-    )
+close : Cmd Msg
+close =
+    sendMessage PleaseClose
 
 
 subscriptions : Image msg a -> Sub Msg
@@ -103,6 +101,7 @@ type Msg
     = DoQueue
     | QueueDone (Result JavaScript.Error ())
     | DayElapsed
+    | PleaseClose
     | NoOperation
 
 
@@ -152,6 +151,11 @@ updateMsg config msg (Image a) =
 
         DayElapsed ->
             ( Image { a | queue = queueAddSaveImage (MemoryImage.save a.image) }
+            , sendMessage DoQueue
+            )
+
+        PleaseClose ->
+            ( Image { a | status = Exiting, queue = queueAddSaveImage (MemoryImage.save a.image) }
             , sendMessage DoQueue
             )
 
