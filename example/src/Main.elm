@@ -3,24 +3,19 @@ module Main exposing (..)
 import Codec
 import Console
 import FileSystem
+import JavaScript
 import MemoryImage
-import MemoryImage.Worker
+import MemoryImage.FileSystem
+import Process.Extra
 import Task
 import Time
 
 
 main =
-    MemoryImage.Worker.worker
-        { image = MemoryImage.Config (Codec.encoder modelCodec) (Codec.decoder modelCodec) (Codec.encoder msgCodec) (Codec.decoder msgCodec)
-        , imagePath = FileSystem.Path "image.jsonl"
-
-        --
-        , init = init
+    Platform.worker
+        { init = init
         , update = update
         , subscriptions = subscriptions
-
-        --
-        , gotFlags = GotFlags
         }
 
 
@@ -29,21 +24,19 @@ main =
 
 
 type alias Model =
-    { counter : Int
+    { status : Status
+    , image : Maybe (MemoryImage.FileSystem.Image ImageMsg Image)
     }
-
-
-modelCodec : Codec.Codec Model
-modelCodec =
-    Codec.object Model
-        |> Codec.field "counter" .counter Codec.int
-        |> Codec.buildObject
 
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( Model 1
-    , Cmd.none
+    ( Model Starting Nothing
+    , Cmd.batch
+        [ MemoryImage.FileSystem.open imageConfig initImage updateImage (FileSystem.Path "image.jsonl")
+            |> Task.attempt GotImage
+        , Process.Extra.onExit ProcessExit
+        ]
     )
 
 
@@ -52,48 +45,85 @@ init () =
 
 
 type Msg
-    = GotFlags ()
-    | IncreaseCounter
+    = GotImage (Result JavaScript.Error (MemoryImage.FileSystem.Image ImageMsg Image))
+    | GotImageMsg ImageMsg
+    | GotMemoryImageMsg MemoryImage.FileSystem.Msg
+    | ProcessExit
     | NoOperation
-
-
-msgCodec : Codec.Codec Msg
-msgCodec =
-    Codec.custom
-        (\fn1 fn2 fn3 v ->
-            case v of
-                GotFlags v1 ->
-                    fn1 v1
-
-                IncreaseCounter ->
-                    fn2
-
-                NoOperation ->
-                    fn3
-        )
-        |> Codec.variant1 "GotFlags" GotFlags (Codec.succeed ())
-        |> Codec.variant0 "IncreaseCounter" IncreaseCounter
-        |> Codec.variant0 "NoOperation" NoOperation
-        |> Codec.buildCustom
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        _ =
+            Debug.log "Image" (model.image |> Maybe.map MemoryImage.FileSystem.image)
+    in
     case msg of
-        GotFlags _ ->
-            ( model
-            , Cmd.none
+        GotImage b ->
+            case b of
+                Ok c ->
+                    ( { model | status = Running, image = Just c }
+                    , Cmd.none
+                    )
+
+                Err c ->
+                    ( model
+                    , Console.logError (JavaScript.errorToString c)
+                        |> Task.attempt (\_ -> NoOperation)
+                    )
+
+        GotImageMsg b ->
+            case model.image of
+                Just c ->
+                    let
+                        ( image, cmd ) =
+                            MemoryImage.FileSystem.update updateImage b c
+                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
+
+                        _ =
+                            Debug.log "Image" (Maybe.map MemoryImage.FileSystem.image image)
+                    in
+                    ( { model | image = image }
+                    , cmd
+                    )
+
+                Nothing ->
+                    ( model
+                    , Cmd.none
+                    )
+
+        GotMemoryImageMsg b ->
+            let
+                ( image, cmd ) =
+                    case model.image of
+                        Just c ->
+                            MemoryImage.FileSystem.updateMsg imageConfig b c
+                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
+
+                        Nothing ->
+                            ( Nothing
+                            , Cmd.none
+                            )
+            in
+            ( { model | image = image }
+            , cmd
             )
 
-        IncreaseCounter ->
+        ProcessExit ->
             let
-                nextModel : Model
-                nextModel =
-                    { model | counter = model.counter + 1 }
+                ( image, cmd ) =
+                    case model.image of
+                        Just c ->
+                            MemoryImage.FileSystem.close c
+                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
+
+                        Nothing ->
+                            ( Nothing
+                            , Cmd.none
+                            )
             in
-            ( nextModel
-            , Console.log (String.fromInt nextModel.counter)
-                |> Task.attempt (\_ -> NoOperation)
+            ( { model | status = Exiting, image = image }
+            , cmd
             )
 
         NoOperation ->
@@ -107,5 +137,88 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Time.every 10 (\_ -> IncreaseCounter)
+subscriptions model =
+    Sub.batch
+        [ case model.status of
+            Starting ->
+                Sub.none
+
+            Running ->
+                Time.every 1000 (\_ -> GotImageMsg IncreaseCounter)
+
+            Exiting ->
+                Sub.none
+        , case model.image of
+            Just b ->
+                MemoryImage.FileSystem.subscriptions b |> Sub.map GotMemoryImageMsg
+
+            Nothing ->
+                Sub.none
+        ]
+
+
+
+--
+
+
+type Status
+    = Starting
+    | Running
+    | Exiting
+
+
+
+--
+
+
+type alias Image =
+    { counter : Int
+    }
+
+
+initImage : () -> Image
+initImage () =
+    Image 0
+
+
+imageCodec : Codec.Codec Image
+imageCodec =
+    Codec.object Image
+        |> Codec.field "counter" .counter Codec.int
+        |> Codec.buildObject
+
+
+imageConfig : MemoryImage.Config ImageMsg Image
+imageConfig =
+    MemoryImage.Config
+        (Codec.encoder imageCodec)
+        (Codec.decoder imageCodec)
+        (Codec.encoder imageMsgCodec)
+        (Codec.decoder imageMsgCodec)
+
+
+
+--
+
+
+type ImageMsg
+    = IncreaseCounter
+
+
+imageMsgCodec : Codec.Codec ImageMsg
+imageMsgCodec =
+    Codec.custom
+        (\fn1 v ->
+            case v of
+                IncreaseCounter ->
+                    fn1
+        )
+        |> Codec.variant0 "IncreaseCounter" IncreaseCounter
+        |> Codec.buildCustom
+
+
+updateImage : ImageMsg -> Image -> Image
+updateImage msg model =
+    case msg of
+        IncreaseCounter ->
+            { model | counter = model.counter + 1 }
