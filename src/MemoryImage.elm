@@ -1,4 +1,4 @@
-module MemoryImage exposing (AppendData(..), Config, DiskImage, MemoryImage, OverwriteData(..), create, decodeDiskImage, diskImageToMemoryImage, encodeDiskImage, image, load, save, update)
+module MemoryImage exposing (Config, DiskImage, LogMessage(..), MemoryImage, SaveImage(..), create, decodeDiskImage, diskImageToMemoryImage, encodeDiskImage, image, load, save, update)
 
 import Json.Decode
 import Json.Encode
@@ -27,19 +27,19 @@ type alias Config msg a =
     }
 
 
-create : Config msg a -> (() -> ( a, Cmd msg )) -> ( MemoryImage msg a, Cmd msg, OverwriteData )
-create config initFn =
+create : (() -> a) -> ( MemoryImage msg a, SaveImage a )
+create initFn =
     let
-        ( image_, cmd ) =
-            initFn () |> Tuple.mapFirst MemoryImage
+        image_ : MemoryImage msg a
+        image_ =
+            initFn () |> MemoryImage
     in
     ( image_
-    , cmd
-    , save config image_
+    , save image_
     )
 
 
-load : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> String -> Result Json.Decode.Error (MemoryImage msg a)
+load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage msg a)
 load config updateFn a =
     decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
@@ -48,37 +48,32 @@ load config updateFn a =
 --
 
 
-update : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Cmd msg, AppendData )
-update config updateFn msg (MemoryImage a) =
-    let
-        ( image_, cmd ) =
-            updateFn msg a |> Tuple.mapFirst MemoryImage
-    in
-    ( image_
-    , cmd
-    , msg |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n" |> AppendData
+update : (msg -> a -> a) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, LogMessage msg )
+update updateFn msg (MemoryImage a) =
+    ( updateFn msg a |> MemoryImage
+    , msg |> LogMessage
     )
 
 
-save : Config msg a -> MemoryImage msg a -> OverwriteData
-save config (MemoryImage a) =
-    DiskImage a [] |> encodeDiskImage config |> OverwriteData
+save : MemoryImage msg a -> SaveImage a
+save (MemoryImage a) =
+    SaveImage a
 
 
 
 --
 
 
-type AppendData
-    = AppendData String
+type SaveImage a
+    = SaveImage a
 
 
 
 --
 
 
-type OverwriteData
-    = OverwriteData String
+type LogMessage msg
+    = LogMessage msg
 
 
 
@@ -89,10 +84,10 @@ type DiskImage msg a
     = DiskImage a (List msg)
 
 
-diskImageToMemoryImage : (msg -> a -> ( a, Cmd msg )) -> DiskImage msg a -> MemoryImage msg a
+diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage msg a
 diskImageToMemoryImage updateFn (DiskImage a messages) =
     messages
-        |> List.foldl (\v1 v2 -> updateFn v1 v2 |> Tuple.first) a
+        |> List.foldl updateFn a
         |> MemoryImage
 
 
