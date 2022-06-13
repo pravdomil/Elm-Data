@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing (Model, Msg, close, open, subscriptions, update, updateMsg)
+module MemoryImage.FileSystem exposing (Model, Msg, close, image, open, subscriptions, update, updateMsg)
 
 import Console
 import FileSystem
@@ -38,25 +38,30 @@ open config initFn updateFn path =
                 case b of
                     Just c ->
                         let
-                            image : MemoryImage.MemoryImage msg a
-                            image =
+                            image_ : MemoryImage.MemoryImage msg a
+                            image_ =
                                 MemoryImage.diskImageToMemoryImage updateFn c
                         in
-                        emptyModel image handle Empty
+                        emptyModel image_ handle Empty
 
                     Nothing ->
                         let
-                            ( image, data ) =
+                            ( image_, data ) =
                                 MemoryImage.create initFn
                         in
-                        emptyModel image handle (queueAddSaveImage data)
+                        emptyModel image_ handle (queueAddSaveImage data)
             )
+
+
+image : Model msg a -> a
+image (Model a) =
+    a.image |> MemoryImage.image
 
 
 update : (msg -> a -> a) -> msg -> Model msg a -> ( Model msg a, Cmd Msg )
 update updateFn msg (Model a) =
     let
-        ( image, logMessage ) =
+        ( image_, logMessage ) =
             MemoryImage.update updateFn msg a.image
 
         queue : Queue msg a
@@ -68,7 +73,7 @@ update updateFn msg (Model a) =
                 Exiting ->
                     queueAddSaveImage (MemoryImage.save a.image)
     in
-    ( Model { a | image = image, queue = queue }
+    ( Model { a | image = image_, queue = queue }
     , sendMessage DoQueue
     )
 
