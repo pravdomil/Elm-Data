@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing (Model, Msg, close, image, open, subscriptions, update, updateMsg)
+module MemoryImage.FileSystem exposing (Image, Msg, close, image, open, subscriptions, update, updateMsg)
 
 import Console
 import FileSystem
@@ -11,8 +11,8 @@ import Task
 import Time
 
 
-type Model msg a
-    = Model
+type Image msg a
+    = Image
         { image : MemoryImage.MemoryImage msg a
         , status : Status
         , handle : FileSystem.Handle.Handle
@@ -21,16 +21,16 @@ type Model msg a
         }
 
 
-emptyModel : MemoryImage.MemoryImage msg a -> FileSystem.Handle.Handle -> Queue msg a -> Model msg a
+emptyModel : MemoryImage.MemoryImage msg a -> FileSystem.Handle.Handle -> Queue msg a -> Image msg a
 emptyModel a b c =
-    Model { image = a, status = Running, handle = b, queue = c, queueStatus = Idle }
+    Image { image = a, status = Running, handle = b, queue = c, queueStatus = Idle }
 
 
 
 --
 
 
-open : MemoryImage.Config msg a -> (() -> a) -> (msg -> a -> a) -> FileSystem.Path -> Task.Task JavaScript.Error (Model msg a)
+open : MemoryImage.Config msg a -> (() -> a) -> (msg -> a -> a) -> FileSystem.Path -> Task.Task JavaScript.Error (Image msg a)
 open config initFn updateFn path =
     getDiskImage config path
         |> Task.map
@@ -53,13 +53,13 @@ open config initFn updateFn path =
             )
 
 
-image : Model msg a -> a
-image (Model a) =
+image : Image msg a -> a
+image (Image a) =
     a.image |> MemoryImage.image
 
 
-update : (msg -> a -> a) -> msg -> Model msg a -> ( Model msg a, Cmd Msg )
-update updateFn msg (Model a) =
+update : (msg -> a -> a) -> msg -> Image msg a -> ( Image msg a, Cmd Msg )
+update updateFn msg (Image a) =
     let
         ( image_, logMessage ) =
             MemoryImage.update updateFn msg a.image
@@ -73,20 +73,20 @@ update updateFn msg (Model a) =
                 Exiting ->
                     queueAddSaveImage (MemoryImage.save a.image)
     in
-    ( Model { a | image = image_, queue = queue }
+    ( Image { a | image = image_, queue = queue }
     , sendMessage DoQueue
     )
 
 
-close : Model msg a -> ( Model msg a, Cmd Msg )
-close (Model a) =
-    ( Model { a | status = Exiting, queue = queueAddSaveImage (MemoryImage.save a.image) }
+close : Image msg a -> ( Image msg a, Cmd Msg )
+close (Image a) =
+    ( Image { a | status = Exiting, queue = queueAddSaveImage (MemoryImage.save a.image) }
     , sendMessage DoQueue
     )
 
 
-subscriptions : Model msg a -> Sub Msg
-subscriptions (Model a) =
+subscriptions : Image msg a -> Sub Msg
+subscriptions (Image a) =
     case a.status of
         Running ->
             Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
@@ -106,13 +106,13 @@ type Msg
     | NoOperation
 
 
-updateMsg : MemoryImage.Config msg a -> Msg -> Model msg a -> ( Model msg a, Cmd Msg )
-updateMsg config msg (Model a) =
+updateMsg : MemoryImage.Config msg a -> Msg -> Image msg a -> ( Image msg a, Cmd Msg )
+updateMsg config msg (Image a) =
     case msg of
         DoQueue ->
             case a.queueStatus of
                 Idle ->
-                    ( Model { a | queue = Empty }
+                    ( Image { a | queue = Empty }
                     , case a.queue of
                         Empty ->
                             Cmd.none
@@ -130,19 +130,19 @@ updateMsg config msg (Model a) =
                     )
 
                 Busy ->
-                    ( Model a
+                    ( Image a
                     , Cmd.none
                     )
 
         QueueDone b ->
             case b of
                 Ok _ ->
-                    ( Model { a | queueStatus = Idle }
+                    ( Image { a | queueStatus = Idle }
                     , sendMessage DoQueue
                     )
 
                 Err d ->
-                    ( Model { a | queue = queueAddSaveImage (MemoryImage.save a.image), queueStatus = Idle }
+                    ( Image { a | queue = queueAddSaveImage (MemoryImage.save a.image), queueStatus = Idle }
                     , Cmd.batch
                         [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
                             |> Task.attempt (\_ -> NoOperation)
@@ -151,12 +151,12 @@ updateMsg config msg (Model a) =
                     )
 
         DayElapsed ->
-            ( Model { a | queue = queueAddSaveImage (MemoryImage.save a.image) }
+            ( Image { a | queue = queueAddSaveImage (MemoryImage.save a.image) }
             , sendMessage DoQueue
             )
 
         NoOperation ->
-            ( Model a
+            ( Image a
             , Cmd.none
             )
 
