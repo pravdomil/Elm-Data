@@ -100,7 +100,7 @@ updateMsg config initFn updateFn msg (Image a) =
                     case c of
                         Just d ->
                             ( Image { a | image = Just ( handle, MemoryImage.diskImageToMemoryImage updateFn d ) }
-                            , Cmd.none
+                            , sendMessage DoQueue
                             )
 
                         Nothing ->
@@ -109,7 +109,10 @@ updateMsg config initFn updateFn msg (Image a) =
                                     MemoryImage.init initFn
                             in
                             ( Image { a | image = Just ( handle, image_ ), queue = SaveImage }
-                            , cmd |> Cmd.map GotMessage
+                            , Cmd.batch
+                                [ cmd |> Cmd.map GotMessage
+                                , sendMessage DoQueue
+                                ]
                             )
 
                 Err c ->
