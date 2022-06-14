@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, subscriptions, update, updateMsg)
+module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, sendMessage, subscriptions, updateMsg)
 
 import Console
 import FileSystem
@@ -45,14 +45,14 @@ init path =
     )
 
 
-update : msg -> Cmd (Msg msg)
-update a =
-    sendMessage (GotMessage a)
+sendMessage : msg -> Cmd (Msg msg)
+sendMessage a =
+    sendMessageToSelf (GotMessage a)
 
 
 close : Cmd (Msg msg)
 close =
-    sendMessage PleaseClose
+    sendMessageToSelf PleaseClose
 
 
 subscriptions : Image msg a -> Sub (Msg msg)
@@ -100,7 +100,7 @@ updateMsg config initFn updateFn msg (Image a) =
                     case c of
                         Just d ->
                             ( Image { a | image = Just ( handle, MemoryImage.diskImageToMemoryImage updateFn d ) }
-                            , sendMessage DoQueue
+                            , sendMessageToSelf DoQueue
                             )
 
                         Nothing ->
@@ -111,7 +111,7 @@ updateMsg config initFn updateFn msg (Image a) =
                             ( Image { a | image = Just ( handle, image_ ), queue = SaveImage }
                             , Cmd.batch
                                 [ cmd |> Cmd.map GotMessage
-                                , sendMessage DoQueue
+                                , sendMessageToSelf DoQueue
                                 ]
                             )
 
@@ -135,7 +135,7 @@ updateMsg config initFn updateFn msg (Image a) =
                     ( Image { a | image = Just ( handle, image_ ), queue = queueAddLogMessage b a.queue }
                     , Cmd.batch
                         [ cmd |> Cmd.map GotMessage
-                        , sendMessage DoQueue
+                        , sendMessageToSelf DoQueue
                         ]
                     )
 
@@ -194,7 +194,7 @@ updateMsg config initFn updateFn msg (Image a) =
             case b of
                 Ok _ ->
                     ( Image { a | queueStatus = Idle }
-                    , sendMessage DoQueue
+                    , sendMessageToSelf DoQueue
                     )
 
                 Err d ->
@@ -208,12 +208,12 @@ updateMsg config initFn updateFn msg (Image a) =
 
         DayElapsed ->
             ( Image { a | queue = SaveImage }
-            , sendMessage DoQueue
+            , sendMessageToSelf DoQueue
             )
 
         PleaseClose ->
             ( Image { a | status = Exiting, queue = SaveImage }
-            , sendMessage DoQueue
+            , sendMessageToSelf DoQueue
             )
 
         NoOperation ->
@@ -298,8 +298,8 @@ type QueueStatus
 --
 
 
-sendMessage : a -> Cmd a
-sendMessage a =
+sendMessageToSelf : a -> Cmd a
+sendMessageToSelf a =
     Task.succeed () |> Task.perform (\() -> a)
 
 

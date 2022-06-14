@@ -69,7 +69,7 @@ update msg model =
 
         Tick ->
             ( model
-            , MemoryImage.FileSystem.update IncreaseCounter |> Cmd.map GotMemoryImageMsg
+            , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map GotMemoryImageMsg
             )
 
         NoOperation ->
