@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing (Image, Msg, close, image, open, subscriptions, update, updateMsg)
+module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, subscriptions, update, updateMsg)
 
 import Console
 import FileSystem
@@ -7,83 +7,55 @@ import JavaScript
 import Json.Encode
 import MemoryImage
 import Process
+import Process.Extra
 import Task
 import Time
 
 
 type Image msg a
-    = Image
-        { image : MemoryImage.MemoryImage msg a
-        , status : Status
-        , handle : FileSystem.Handle.Handle
-        , queue : Queue msg a
-        , queueStatus : QueueStatus
-        }
+    = Image (Model msg a)
 
 
-emptyModel : MemoryImage.MemoryImage msg a -> FileSystem.Handle.Handle -> Queue msg a -> Image msg a
-emptyModel a b c =
-    Image { image = a, status = Running, handle = b, queue = c, queueStatus = Idle }
+image : Image msg a -> Maybe a
+image (Image a) =
+    a.image |> Maybe.map (Tuple.second >> MemoryImage.image)
 
 
 
 --
 
 
-open : MemoryImage.Config msg a -> (() -> a) -> (msg -> a -> a) -> FileSystem.Path -> Task.Task JavaScript.Error (Image msg a)
-open config initFn updateFn path =
-    getDiskImage config path
-        |> Task.map
-            (\( handle, b ) ->
-                case b of
-                    Just c ->
-                        let
-                            image_ : MemoryImage.MemoryImage msg a
-                            image_ =
-                                MemoryImage.diskImageToMemoryImage updateFn c
-                        in
-                        emptyModel image_ handle Empty
-
-                    Nothing ->
-                        let
-                            ( image_, data ) =
-                                MemoryImage.create initFn
-                        in
-                        emptyModel image_ handle (queueAddSaveImage data)
-            )
+type alias Model msg a =
+    { image : Maybe ( FileSystem.Handle.Handle, MemoryImage.MemoryImage msg a )
+    , status : Status
+    , queue : Queue msg a
+    , queueStatus : QueueStatus
+    }
 
 
-image : Image msg a -> a
-image (Image a) =
-    a.image |> MemoryImage.image
+
+--
 
 
-update : (msg -> a -> a) -> msg -> Image msg a -> ( Image msg a, Cmd Msg )
-update updateFn msg (Image a) =
-    let
-        ( image_, logMessage ) =
-            MemoryImage.update updateFn msg a.image
-
-        queue : Queue msg a
-        queue =
-            case a.status of
-                Running ->
-                    queueAddLogMessage logMessage a.queue
-
-                Exiting ->
-                    queueAddSaveImage (MemoryImage.save a.image)
-    in
-    ( Image { a | image = image_, queue = queue }
-    , sendMessage DoQueue
+init : FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
+init path =
+    ( Image (Model Nothing Running Empty Idle)
+    , getHandle path
+        |> Task.attempt GotHandle
     )
 
 
-close : Cmd Msg
+update : msg -> Cmd (Msg msg)
+update a =
+    sendMessage (GotMessage a)
+
+
+close : Cmd (Msg msg)
 close =
     sendMessage PleaseClose
 
 
-subscriptions : Image msg a -> Sub Msg
+subscriptions : Image msg a -> Sub (Msg msg)
 subscriptions (Image a) =
     case a.status of
         Running ->
@@ -97,38 +69,120 @@ subscriptions (Image a) =
 --
 
 
-type Msg
-    = DoQueue
+type Msg msg
+    = GotHandle (Result JavaScript.Error ( FileSystem.Handle.Handle, String ))
+    | GotMessage msg
+    | DoQueue
     | QueueDone (Result JavaScript.Error ())
     | DayElapsed
     | PleaseClose
     | NoOperation
 
 
-updateMsg : MemoryImage.Config msg a -> Msg -> Image msg a -> ( Image msg a, Cmd Msg )
-updateMsg config msg (Image a) =
+updateMsg : MemoryImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+updateMsg config initFn updateFn msg (Image a) =
     case msg of
-        DoQueue ->
-            case a.queueStatus of
-                Idle ->
-                    ( Image { a | queue = Empty }
-                    , case a.queue of
-                        Empty ->
-                            Cmd.none
+        GotHandle b ->
+            let
+                toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
+                toDiskImage ( handle, c ) =
+                    case c of
+                        "" ->
+                            Ok ( handle, Nothing )
 
-                        Append _ _ ->
-                            FileSystem.Handle.write (queueToString config a.queue) a.handle
-                                |> Task.map (\_ -> ())
-                                |> Task.attempt QueueDone
+                        _ ->
+                            MemoryImage.decodeDiskImage config c
+                                |> Result.mapError JavaScript.DecodeError
+                                |> Result.map (\v -> ( handle, Just v ))
+            in
+            case b |> Result.andThen toDiskImage of
+                Ok ( handle, c ) ->
+                    case c of
+                        Just d ->
+                            ( Image { a | image = Just ( handle, MemoryImage.diskImageToMemoryImage updateFn d ) }
+                            , Cmd.none
+                            )
 
-                        Overwrite _ _ ->
-                            FileSystem.Handle.truncate a.handle
-                                |> Task.andThen (FileSystem.Handle.write (queueToString config a.queue))
-                                |> Task.map (\_ -> ())
-                                |> Task.attempt QueueDone
+                        Nothing ->
+                            let
+                                ( image_, cmd ) =
+                                    MemoryImage.init initFn
+                            in
+                            ( Image { a | image = Just ( handle, image_ ), queue = SaveImage }
+                            , cmd |> Cmd.map GotMessage
+                            )
+
+                Err c ->
+                    ( Image a
+                    , Cmd.batch
+                        [ Process.Extra.exit 1
+                            |> Task.attempt (\_ -> NoOperation)
+                        , Console.logError ("Cannot load memory image. See details:\n" ++ JavaScript.errorToString c)
+                            |> Task.attempt (\_ -> NoOperation)
+                        ]
                     )
 
-                Busy ->
+        GotMessage b ->
+            case a.image of
+                Just ( handle, c ) ->
+                    let
+                        ( image_, cmd ) =
+                            MemoryImage.update updateFn b c
+                    in
+                    ( Image { a | image = Just ( handle, image_ ), queue = queueAddLogMessage b a.queue }
+                    , Cmd.batch
+                        [ cmd |> Cmd.map GotMessage
+                        , sendMessage DoQueue
+                        ]
+                    )
+
+                Nothing ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
+        DoQueue ->
+            case a.image of
+                Just ( handle, image_ ) ->
+                    case a.queueStatus of
+                        Idle ->
+                            case a.queue of
+                                Empty ->
+                                    ( Image a
+                                    , Cmd.none
+                                    )
+
+                                LogMessage first rest ->
+                                    let
+                                        data : String
+                                        data =
+                                            encodeMessages config (first :: rest)
+                                    in
+                                    ( Image { a | queue = Empty, queueStatus = Busy }
+                                    , FileSystem.Handle.write data handle
+                                        |> Task.map (\_ -> ())
+                                        |> Task.attempt QueueDone
+                                    )
+
+                                SaveImage ->
+                                    let
+                                        data : String
+                                        data =
+                                            Json.Encode.encode 0 (config.encoder (MemoryImage.image image_))
+                                    in
+                                    ( Image { a | queue = Empty, queueStatus = Busy }
+                                    , FileSystem.Handle.truncate handle
+                                        |> Task.andThen (FileSystem.Handle.write data)
+                                        |> Task.map (\_ -> ())
+                                        |> Task.attempt QueueDone
+                                    )
+
+                        Busy ->
+                            ( Image a
+                            , Cmd.none
+                            )
+
+                Nothing ->
                     ( Image a
                     , Cmd.none
                     )
@@ -141,7 +195,7 @@ updateMsg config msg (Image a) =
                     )
 
                 Err d ->
-                    ( Image { a | queue = queueAddSaveImage (MemoryImage.save a.image), queueStatus = Idle }
+                    ( Image { a | queue = SaveImage, queueStatus = Idle }
                     , Cmd.batch
                         [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
                             |> Task.attempt (\_ -> NoOperation)
@@ -150,18 +204,41 @@ updateMsg config msg (Image a) =
                     )
 
         DayElapsed ->
-            ( Image { a | queue = queueAddSaveImage (MemoryImage.save a.image) }
+            ( Image { a | queue = SaveImage }
             , sendMessage DoQueue
             )
 
         PleaseClose ->
-            ( Image { a | status = Exiting, queue = queueAddSaveImage (MemoryImage.save a.image) }
+            ( Image { a | status = Exiting, queue = SaveImage }
             , sendMessage DoQueue
             )
 
         NoOperation ->
             ( Image a
             , Cmd.none
+            )
+
+
+
+--
+
+
+getHandle : FileSystem.Path -> Task.Task JavaScript.Error ( FileSystem.Handle.Handle, String )
+getHandle path =
+    let
+        mode : FileSystem.Handle.Mode
+        mode =
+            FileSystem.Handle.Mode
+                FileSystem.Handle.ReadAndWrite
+                FileSystem.Handle.CreateIfNotExists
+                FileSystem.Handle.DoNotTruncate
+                FileSystem.Handle.Append
+    in
+    FileSystem.Handle.open mode path
+        |> Task.andThen
+            (\v ->
+                FileSystem.Handle.read v
+                    |> Task.map (\v2 -> ( v, v2 ))
             )
 
 
@@ -180,54 +257,29 @@ type Status
 
 type Queue msg a
     = Empty
-    | Append (MemoryImage.LogMessage msg) (List (MemoryImage.LogMessage msg))
-    | Overwrite (MemoryImage.SaveImage a) (List (MemoryImage.LogMessage msg))
+    | LogMessage msg (List msg)
+    | SaveImage
 
 
-queueAddLogMessage : MemoryImage.LogMessage msg -> Queue msg a -> Queue msg a
+queueAddLogMessage : msg -> Queue msg a -> Queue msg a
 queueAddLogMessage data a =
     case a of
         Empty ->
-            Append data []
+            LogMessage data []
 
-        Overwrite b c ->
-            Overwrite b (data :: c)
+        SaveImage ->
+            SaveImage
 
-        Append first rest ->
-            Append data (first :: rest)
-
-
-queueAddSaveImage : MemoryImage.SaveImage a -> Queue msg a
-queueAddSaveImage a =
-    Overwrite a []
+        LogMessage first rest ->
+            LogMessage data (first :: rest)
 
 
-queueToString : MemoryImage.Config msg a -> Queue msg a -> String
-queueToString config a =
-    let
-        appendDataToString : List (MemoryImage.LogMessage msg) -> String
-        appendDataToString c =
-            c
-                |> List.reverse
-                |> List.map
-                    (\v ->
-                        v
-                            |> (\(MemoryImage.LogMessage v2) -> v2)
-                            |> config.msgEncoder
-                            |> Json.Encode.encode 0
-                            |> (++) "\n"
-                    )
-                |> String.join ""
-    in
-    case a of
-        Empty ->
-            ""
-
-        Overwrite b c ->
-            (\(MemoryImage.SaveImage v) -> Json.Encode.encode 0 (config.encoder v)) b ++ appendDataToString c
-
-        Append first rest ->
-            appendDataToString (first :: rest)
+encodeMessages : MemoryImage.Config msg a -> List msg -> String
+encodeMessages config a =
+    a
+        |> List.reverse
+        |> List.map (\v -> v |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n")
+        |> String.join ""
 
 
 
@@ -243,44 +295,6 @@ type QueueStatus
 --
 
 
-getDiskImage : MemoryImage.Config msg a -> FileSystem.Path -> Task.Task JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
-getDiskImage config a =
-    let
-        mode : FileSystem.Handle.Mode
-        mode =
-            FileSystem.Handle.Mode
-                FileSystem.Handle.ReadAndWrite
-                FileSystem.Handle.CreateIfNotExists
-                FileSystem.Handle.DoNotTruncate
-                FileSystem.Handle.Append
-    in
-    FileSystem.Handle.open mode a
-        |> Task.andThen
-            (\v ->
-                FileSystem.Handle.read v
-                    |> Task.andThen
-                        (\v2 ->
-                            case v2 of
-                                "" ->
-                                    Task.succeed Nothing
-
-                                _ ->
-                                    MemoryImage.decodeDiskImage config v2
-                                        |> resultToTask
-                                        |> Task.mapError JavaScript.DecodeError
-                                        |> Task.map Just
-                        )
-                    |> Task.map
-                        (\v2 ->
-                            ( v, v2 )
-                        )
-            )
-
-
-
---
-
-
 sendMessage : a -> Cmd a
 sendMessage a =
     Task.succeed () |> Task.perform (\() -> a)
@@ -289,13 +303,3 @@ sendMessage a =
 sendMessageAfter : Float -> msg -> Cmd msg
 sendMessageAfter a msg =
     Process.sleep a |> Task.perform (\() -> msg)
-
-
-resultToTask : Result x a -> Task.Task x a
-resultToTask a =
-    case a of
-        Ok b ->
-            Task.succeed b
-
-        Err b ->
-            Task.fail b
