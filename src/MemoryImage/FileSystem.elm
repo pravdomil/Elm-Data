@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, sendMessage, subscriptions, updateMsg)
+module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, sendMessage, subscriptions, update)
 
 import Console
 import FileSystem
@@ -19,6 +19,16 @@ type Image msg a
 image : Image msg a -> Maybe a
 image (Image a) =
     a.image |> Maybe.map (Tuple.second >> MemoryImage.image)
+
+
+sendMessage : msg -> Cmd (Msg msg)
+sendMessage a =
+    sendMessageToSelf (GotMessage a)
+
+
+close : Cmd (Msg msg)
+close =
+    sendMessageToSelf PleaseClose
 
 
 
@@ -45,26 +55,6 @@ init path =
     )
 
 
-sendMessage : msg -> Cmd (Msg msg)
-sendMessage a =
-    sendMessageToSelf (GotMessage a)
-
-
-close : Cmd (Msg msg)
-close =
-    sendMessageToSelf PleaseClose
-
-
-subscriptions : Image msg a -> Sub (Msg msg)
-subscriptions (Image a) =
-    case a.status of
-        Running ->
-            Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
-
-        Exiting ->
-            Sub.none
-
-
 
 --
 
@@ -79,8 +69,8 @@ type Msg msg
     | NoOperation
 
 
-updateMsg : MemoryImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-updateMsg config initFn updateFn msg (Image a) =
+update : MemoryImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+update config initFn updateFn msg (Image a) =
     case msg of
         GotHandle b ->
             let
@@ -220,6 +210,20 @@ updateMsg config initFn updateFn msg (Image a) =
             ( Image a
             , Cmd.none
             )
+
+
+
+--
+
+
+subscriptions : Image msg a -> Sub (Msg msg)
+subscriptions (Image a) =
+    case a.status of
+        Running ->
+            Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
+
+        Exiting ->
+            Sub.none
 
 
 
