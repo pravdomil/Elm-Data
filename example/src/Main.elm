@@ -59,7 +59,7 @@ update msg model =
     in
     case msg of
         GotMemoryImageMsg b ->
-            MemoryImage.FileSystem.updateMsg imageConfig initImage updateImage b model.image
+            MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
 
         ProcessExit ->
