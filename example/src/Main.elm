@@ -1,13 +1,10 @@
 module Main exposing (..)
 
 import Codec
-import Console
 import FileSystem
-import JavaScript
 import MemoryImage
 import MemoryImage.FileSystem
 import Process.Extra
-import Task
 import Time
 
 
@@ -25,16 +22,19 @@ main =
 
 type alias Model =
     { status : Status
-    , image : Maybe (MemoryImage.FileSystem.Image ImageMsg Image)
+    , image : MemoryImage.FileSystem.Image ImageMsg Image
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( Model Starting Nothing
+    let
+        ( image, cmd ) =
+            MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
+    in
+    ( Model Running image
     , Cmd.batch
-        [ MemoryImage.FileSystem.open imageConfig initImage updateImage (FileSystem.Path "image.jsonl")
-            |> Task.attempt GotImage
+        [ cmd |> Cmd.map GotMemoryImageMsg
         , Process.Extra.onExit ProcessExit
         ]
     )
@@ -45,10 +45,9 @@ init () =
 
 
 type Msg
-    = GotImage (Result JavaScript.Error (MemoryImage.FileSystem.Image ImageMsg Image))
-    | GotImageMsg ImageMsg
-    | GotMemoryImageMsg MemoryImage.FileSystem.Msg
+    = GotMemoryImageMsg (MemoryImage.FileSystem.Msg ImageMsg)
     | ProcessExit
+    | Tick
     | NoOperation
 
 
@@ -56,62 +55,21 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         _ =
-            Debug.log "Image" (model.image |> Maybe.map MemoryImage.FileSystem.image)
+            Debug.log "Image" (model.image |> MemoryImage.FileSystem.image)
     in
     case msg of
-        GotImage b ->
-            case b of
-                Ok c ->
-                    ( { model | status = Running, image = Just c }
-                    , Cmd.none
-                    )
-
-                Err c ->
-                    ( model
-                    , Console.logError (JavaScript.errorToString c)
-                        |> Task.attempt (\_ -> NoOperation)
-                    )
-
-        GotImageMsg b ->
-            case model.image of
-                Just c ->
-                    let
-                        ( image, cmd ) =
-                            MemoryImage.FileSystem.update updateImage b c
-                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
-
-                        _ =
-                            Debug.log "Image" (Maybe.map MemoryImage.FileSystem.image image)
-                    in
-                    ( { model | image = image }
-                    , cmd
-                    )
-
-                Nothing ->
-                    ( model
-                    , Cmd.none
-                    )
-
         GotMemoryImageMsg b ->
-            let
-                ( image, cmd ) =
-                    case model.image of
-                        Just c ->
-                            MemoryImage.FileSystem.updateMsg imageConfig b c
-                                |> Tuple.mapBoth Just (Cmd.map GotMemoryImageMsg)
-
-                        Nothing ->
-                            ( Nothing
-                            , Cmd.none
-                            )
-            in
-            ( { model | image = image }
-            , cmd
-            )
+            MemoryImage.FileSystem.updateMsg imageConfig initImage updateImage b model.image
+                |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
 
         ProcessExit ->
             ( { model | status = Exiting }
             , MemoryImage.FileSystem.close |> Cmd.map GotMemoryImageMsg
+            )
+
+        Tick ->
+            ( model
+            , MemoryImage.FileSystem.update IncreaseCounter |> Cmd.map GotMemoryImageMsg
             )
 
         NoOperation ->
@@ -128,20 +86,12 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ case model.status of
-            Starting ->
-                Sub.none
-
             Running ->
-                Time.every 1000 (\_ -> GotImageMsg IncreaseCounter)
+                Time.every 1000 (\_ -> Tick)
 
             Exiting ->
                 Sub.none
-        , case model.image of
-            Just b ->
-                MemoryImage.FileSystem.subscriptions b |> Sub.map GotMemoryImageMsg
-
-            Nothing ->
-                Sub.none
+        , MemoryImage.FileSystem.subscriptions model.image |> Sub.map GotMemoryImageMsg
         ]
 
 
@@ -150,8 +100,7 @@ subscriptions model =
 
 
 type Status
-    = Starting
-    | Running
+    = Running
     | Exiting
 
 
@@ -164,9 +113,11 @@ type alias Image =
     }
 
 
-initImage : () -> Image
+initImage : () -> ( Image, Cmd ImageMsg )
 initImage () =
-    Image 0
+    ( Image 0
+    , Cmd.none
+    )
 
 
 imageCodec : Codec.Codec Image
@@ -205,8 +156,10 @@ imageMsgCodec =
         |> Codec.buildCustom
 
 
-updateImage : ImageMsg -> Image -> Image
+updateImage : ImageMsg -> Image -> ( Image, Cmd ImageMsg )
 updateImage msg model =
     case msg of
         IncreaseCounter ->
-            { model | counter = model.counter + 1 }
+            ( { model | counter = model.counter + 1 }
+            , Cmd.none
+            )
