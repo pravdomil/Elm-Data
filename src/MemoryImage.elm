@@ -1,4 +1,4 @@
-module MemoryImage exposing (Config, DiskImage, LogMessage(..), MemoryImage, SaveImage(..), create, decodeDiskImage, diskImageToMemoryImage, encodeDiskImage, image, load, save, update)
+module MemoryImage exposing (Config, DiskImage, MemoryImage, decodeDiskImage, diskImageToMemoryImage, encodeDiskImage, image, init, load, update)
 
 import Json.Decode
 import Json.Encode
@@ -27,53 +27,19 @@ type alias Config msg a =
     }
 
 
-create : (() -> a) -> ( MemoryImage msg a, SaveImage a )
-create initFn =
-    let
-        image_ : MemoryImage msg a
-        image_ =
-            initFn () |> MemoryImage
-    in
-    ( image_
-    , save image_
-    )
+init : (() -> ( a, Cmd msg )) -> ( MemoryImage msg a, Cmd msg )
+init initFn =
+    initFn () |> Tuple.mapFirst MemoryImage
 
 
-load : Config msg a -> (msg -> a -> a) -> String -> Result Json.Decode.Error (MemoryImage msg a)
+load : Config msg a -> (msg -> a -> ( a, Cmd msg )) -> String -> Result Json.Decode.Error (MemoryImage msg a)
 load config updateFn a =
     decodeDiskImage config a |> Result.map (diskImageToMemoryImage updateFn)
 
 
-
---
-
-
-update : (msg -> a -> a) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, LogMessage msg )
+update : (msg -> a -> ( a, Cmd msg )) -> msg -> MemoryImage msg a -> ( MemoryImage msg a, Cmd msg )
 update updateFn msg (MemoryImage a) =
-    ( updateFn msg a |> MemoryImage
-    , msg |> LogMessage
-    )
-
-
-save : MemoryImage msg a -> SaveImage a
-save (MemoryImage a) =
-    SaveImage a
-
-
-
---
-
-
-type SaveImage a
-    = SaveImage a
-
-
-
---
-
-
-type LogMessage msg
-    = LogMessage msg
+    updateFn msg a |> Tuple.mapFirst MemoryImage
 
 
 
@@ -84,10 +50,10 @@ type DiskImage msg a
     = DiskImage a (List msg)
 
 
-diskImageToMemoryImage : (msg -> a -> a) -> DiskImage msg a -> MemoryImage msg a
+diskImageToMemoryImage : (msg -> a -> ( a, Cmd msg )) -> DiskImage msg a -> MemoryImage msg a
 diskImageToMemoryImage updateFn (DiskImage a messages) =
     messages
-        |> List.foldl updateFn a
+        |> List.foldl (\v1 v2 -> updateFn v1 v2 |> Tuple.first) a
         |> MemoryImage
 
 
