@@ -30,7 +30,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
     let
         ( image, cmd ) =
-            MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
+            MemoryImage.FileSystem.init imageConfig (FileSystem.Path "image.jsonl")
     in
     ( Model Running image
     , Cmd.batch

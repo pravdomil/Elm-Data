@@ -20,7 +20,6 @@ import FileSystem.Handle
 import JavaScript
 import Json.Encode
 import MemoryImage
-import Process
 import Process.Extra
 import Task
 import Time
@@ -32,7 +31,15 @@ type Image msg a
 
 image : Image msg a -> Maybe a
 image (Image a) =
-    a.image |> Maybe.map (Tuple.second >> MemoryImage.image)
+    case a.image of
+        NoImage ->
+            Nothing
+
+        LoadingImage _ _ ->
+            Nothing
+
+        ReadyImage _ _ b ->
+            Just (MemoryImage.image b)
 
 
 sendMessage : msg -> Cmd (Msg msg)
@@ -50,23 +57,45 @@ close =
 
 
 type alias Model msg a =
-    { image : Maybe ( FileSystem.Handle.Handle, MemoryImage.MemoryImage msg a )
+    { path : FileSystem.Path
+    , image : ImageState msg a
     , status : Status
-    , queue : Queue msg a
-    , queueStatus : QueueStatus
     }
+
+
+type ImageState msg a
+    = NoImage
+    | LoadingImage (Maybe (Queue msg a)) (List msg)
+    | ReadyImage (Maybe (Queue msg a)) Handle (MemoryImage.MemoryImage msg a)
+
+
+type Handle
+    = ReadyHandle FileSystem.Handle.Handle
+    | BusyHandle FileSystem.Handle.Handle
+
+
+handleToHandle : Handle -> FileSystem.Handle.Handle
+handleToHandle a =
+    case a of
+        ReadyHandle b ->
+            b
+
+        BusyHandle b ->
+            b
+
+
+type Status
+    = Running
+    | Exiting
 
 
 
 --
 
 
-init : FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
-init path =
-    ( Image (Model Nothing Running Empty Idle)
-    , getHandle path
-        |> Task.attempt GotHandle
-    )
+init : MemoryImage.Config msg a -> FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
+init config path =
+    lifecycle config (Image (Model path NoImage Running))
 
 
 
@@ -76,7 +105,6 @@ init path =
 type Msg msg
     = GotHandle (Result JavaScript.Error ( FileSystem.Handle.Handle, String ))
     | GotMessage msg
-    | DoQueue
     | QueueDone (Result JavaScript.Error ())
     | DayElapsed
     | PleaseClose
@@ -85,142 +113,245 @@ type Msg msg
 
 update : MemoryImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
 update config initFn updateFn msg (Image a) =
-    case msg of
+    (case msg of
         GotHandle b ->
-            let
-                toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
-                toDiskImage ( handle, c ) =
-                    case c of
-                        "" ->
-                            Ok ( handle, Nothing )
+            case a.image of
+                NoImage ->
+                    ( Image a
+                    , Cmd.none
+                    )
 
-                        _ ->
-                            MemoryImage.decodeDiskImage config c
-                                |> Result.mapError JavaScript.DecodeError
-                                |> Result.map (\v -> ( handle, Just v ))
-            in
-            case b |> Result.andThen toDiskImage of
-                Ok ( handle, c ) ->
-                    case c of
-                        Just d ->
-                            ( Image { a | image = Just ( handle, MemoryImage.diskImageToMemoryImage updateFn d ) }
-                            , sendMessageToSelf DoQueue
-                            )
+                LoadingImage queue messages ->
+                    let
+                        toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
+                        toDiskImage ( handle, c ) =
+                            case c of
+                                "" ->
+                                    Ok ( handle, Nothing )
 
-                        Nothing ->
+                                _ ->
+                                    MemoryImage.decodeDiskImage config c
+                                        |> Result.mapError JavaScript.DecodeError
+                                        |> Result.map (\v -> ( handle, Just v ))
+                    in
+                    case b |> Result.andThen toDiskImage of
+                        Ok ( handle, c ) ->
                             let
                                 ( image_, cmd ) =
-                                    MemoryImage.init initFn
+                                    (case c of
+                                        Just d ->
+                                            ( MemoryImage.diskImageToMemoryImage updateFn d
+                                            , Cmd.none
+                                            )
+
+                                        Nothing ->
+                                            MemoryImage.init initFn
+                                    )
+                                        |> updateMultiple (MemoryImage.update updateFn) messages
                             in
-                            ( Image { a | image = Just ( handle, image_ ), queue = SaveImage }
+                            ( Image { a | image = ReadyImage queue (ReadyHandle handle) image_ }
+                            , cmd |> Cmd.map GotMessage
+                            )
+
+                        Err c ->
+                            ( Image a
                             , Cmd.batch
-                                [ cmd |> Cmd.map GotMessage
-                                , sendMessageToSelf DoQueue
+                                [ Process.Extra.exit 1
+                                    |> Task.attempt (\_ -> NoOperation)
+                                , Console.logError ("Cannot load memory image. See details:\n" ++ JavaScript.errorToString c)
+                                    |> Task.attempt (\_ -> NoOperation)
                                 ]
                             )
 
-                Err c ->
+                ReadyImage _ _ _ ->
                     ( Image a
-                    , Cmd.batch
-                        [ Process.Extra.exit 1
-                            |> Task.attempt (\_ -> NoOperation)
-                        , Console.logError ("Cannot load memory image. See details:\n" ++ JavaScript.errorToString c)
-                            |> Task.attempt (\_ -> NoOperation)
-                        ]
+                    , Cmd.none
                     )
 
         GotMessage b ->
             case a.image of
-                Just ( handle, c ) ->
-                    let
-                        ( image_, cmd ) =
-                            MemoryImage.update updateFn b c
-                    in
-                    ( Image { a | image = Just ( handle, image_ ), queue = queueAddLogMessage b a.queue }
-                    , Cmd.batch
-                        [ cmd |> Cmd.map GotMessage
-                        , sendMessageToSelf DoQueue
-                        ]
-                    )
-
-                Nothing ->
+                NoImage ->
                     ( Image a
                     , Cmd.none
                     )
 
-        DoQueue ->
+                LoadingImage c d ->
+                    ( Image { a | image = LoadingImage (queueAddLogMessage b c) (b :: d) }
+                    , Cmd.none
+                    )
+
+                ReadyImage queue handle image_ ->
+                    let
+                        ( nextImage, cmd ) =
+                            MemoryImage.update updateFn b image_
+                    in
+                    ( Image { a | image = ReadyImage (queueAddLogMessage b queue) handle nextImage }
+                    , cmd |> Cmd.map GotMessage
+                    )
+
+        QueueDone c ->
             case a.image of
-                Just ( handle, image_ ) ->
-                    case a.queueStatus of
-                        Idle ->
-                            case a.queue of
-                                Empty ->
-                                    ( Image a
-                                    , Cmd.none
-                                    )
+                NoImage ->
+                    ( Image a
+                    , Cmd.none
+                    )
 
-                                LogMessage first rest ->
-                                    let
-                                        data : String
-                                        data =
-                                            encodeMessages config (first :: rest)
-                                    in
-                                    ( Image { a | queue = Empty, queueStatus = Busy }
-                                    , FileSystem.Handle.write data handle
-                                        |> Task.map (\_ -> ())
-                                        |> Task.attempt QueueDone
-                                    )
+                LoadingImage _ _ ->
+                    ( Image a
+                    , Cmd.none
+                    )
 
-                                SaveImage ->
-                                    let
-                                        data : String
-                                        data =
-                                            Json.Encode.encode 0 (config.encoder (MemoryImage.image image_))
-                                    in
-                                    ( Image { a | queue = Empty, queueStatus = Busy }
-                                    , FileSystem.Handle.truncate handle
-                                        |> Task.andThen (FileSystem.Handle.write data)
-                                        |> Task.map (\_ -> ())
-                                        |> Task.attempt QueueDone
-                                    )
+                ReadyImage queue handle image_ ->
+                    case c of
+                        Ok _ ->
+                            ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) image_ }
+                            , Cmd.none
+                            )
 
-                        Busy ->
+                        Err d ->
+                            ( Image { a | image = ReadyImage (Just SaveImage) (ReadyHandle (handleToHandle handle)) image_ }
+                            , Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
+                                |> Task.attempt (\_ -> NoOperation)
+                            )
+
+        DayElapsed ->
+            case a.image of
+                NoImage ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
+                LoadingImage _ b ->
+                    ( Image { a | image = LoadingImage (Just SaveImage) b }
+                    , Cmd.none
+                    )
+
+                ReadyImage _ handle memoryImage ->
+                    ( Image { a | image = ReadyImage (Just SaveImage) handle memoryImage }
+                    , Cmd.none
+                    )
+
+        PleaseClose ->
+            case a.image of
+                NoImage ->
+                    ( Image { a | status = Exiting }
+                    , Cmd.none
+                    )
+
+                LoadingImage _ b ->
+                    ( Image { a | status = Exiting, image = LoadingImage (Just SaveImage) b }
+                    , Cmd.none
+                    )
+
+                ReadyImage _ b c ->
+                    ( Image { a | status = Exiting, image = ReadyImage (Just SaveImage) b c }
+                    , Cmd.none
+                    )
+
+        NoOperation ->
+            ( Image a
+            , Cmd.none
+            )
+    )
+        |> (\( v, cmd ) ->
+                let
+                    ( v2, cmd2 ) =
+                        lifecycle config v
+                in
+                ( v2
+                , Cmd.batch [ cmd, cmd2 ]
+                )
+           )
+
+
+lifecycle : MemoryImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+lifecycle config (Image a) =
+    case a.status of
+        Running ->
+            case a.image of
+                NoImage ->
+                    ( Image { a | image = LoadingImage Nothing [] }
+                    , getHandle a.path
+                        |> Task.attempt GotHandle
+                    )
+
+                LoadingImage _ _ ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
+                ReadyImage queue handle image_ ->
+                    case queue of
+                        Just c ->
+                            doQueue config handle image_ c a
+
+                        Nothing ->
                             ( Image a
                             , Cmd.none
                             )
 
-                Nothing ->
+        Exiting ->
+            case a.image of
+                NoImage ->
                     ( Image a
                     , Cmd.none
                     )
 
-        QueueDone b ->
-            case b of
-                Ok _ ->
-                    ( Image { a | queueStatus = Idle }
-                    , sendMessageToSelf DoQueue
+                LoadingImage _ _ ->
+                    ( Image a
+                    , Cmd.none
                     )
 
-                Err d ->
-                    ( Image { a | queue = SaveImage, queueStatus = Idle }
-                    , Cmd.batch
-                        [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
-                            |> Task.attempt (\_ -> NoOperation)
-                        , sendMessageAfter 1000 DoQueue
-                        ]
+                ReadyImage queue handle image_ ->
+                    case queue of
+                        Just b ->
+                            doQueue config handle image_ b a
+
+                        Nothing ->
+                            case handle of
+                                ReadyHandle c ->
+                                    ( Image { a | image = NoImage }
+                                    , FileSystem.Handle.close c
+                                        |> Task.attempt (\_ -> NoOperation)
+                                    )
+
+                                BusyHandle _ ->
+                                    ( Image a
+                                    , Cmd.none
+                                    )
+
+
+doQueue : MemoryImage.Config msg a -> Handle -> MemoryImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
+doQueue config handle image_ queue a =
+    case handle of
+        ReadyHandle c ->
+            case queue of
+                LogMessage first rest ->
+                    let
+                        data : String
+                        data =
+                            encodeMessages config (first :: rest)
+                    in
+                    ( Image { a | image = ReadyImage Nothing (BusyHandle c) image_ }
+                    , FileSystem.Handle.write data c
+                        |> Task.map (\_ -> ())
+                        |> Task.attempt QueueDone
                     )
 
-        DayElapsed ->
-            ( Image { a | queue = SaveImage }
-            , sendMessageToSelf DoQueue
-            )
+                SaveImage ->
+                    let
+                        data : String
+                        data =
+                            Json.Encode.encode 0 (config.encoder (MemoryImage.image image_))
+                    in
+                    ( Image { a | image = ReadyImage Nothing (BusyHandle c) image_ }
+                    , FileSystem.Handle.truncate c
+                        |> Task.andThen (FileSystem.Handle.write data)
+                        |> Task.map (\_ -> ())
+                        |> Task.attempt QueueDone
+                    )
 
-        PleaseClose ->
-            ( Image { a | status = Exiting, queue = SaveImage }
-            , sendMessageToSelf DoQueue
-            )
-
-        NoOperation ->
+        BusyHandle _ ->
             ( Image a
             , Cmd.none
             )
@@ -267,32 +398,24 @@ getHandle path =
 --
 
 
-type Status
-    = Running
-    | Exiting
-
-
-
---
-
-
 type Queue msg a
-    = Empty
-    | LogMessage msg (List msg)
+    = LogMessage msg (List msg)
     | SaveImage
 
 
-queueAddLogMessage : msg -> Queue msg a -> Queue msg a
+queueAddLogMessage : msg -> Maybe (Queue msg a) -> Maybe (Queue msg a)
 queueAddLogMessage data a =
     case a of
-        Empty ->
-            LogMessage data []
+        Just b ->
+            case b of
+                LogMessage first rest ->
+                    Just (LogMessage data (first :: rest))
 
-        SaveImage ->
-            SaveImage
+                SaveImage ->
+                    Just SaveImage
 
-        LogMessage first rest ->
-            LogMessage data (first :: rest)
+        Nothing ->
+            Just (LogMessage data [])
 
 
 encodeMessages : MemoryImage.Config msg a -> List msg -> String
@@ -307,20 +430,20 @@ encodeMessages config a =
 --
 
 
-type QueueStatus
-    = Idle
-    | Busy
-
-
-
---
-
-
 sendMessageToSelf : a -> Cmd a
 sendMessageToSelf a =
     Task.succeed () |> Task.perform (\() -> a)
 
 
-sendMessageAfter : Float -> msg -> Cmd msg
-sendMessageAfter a msg =
-    Process.sleep a |> Task.perform (\() -> msg)
+updateMultiple : (msg -> model -> ( model, Cmd msg )) -> List msg -> ( model, Cmd msg ) -> ( model, Cmd msg )
+updateMultiple updateFn messages ( model, cmd ) =
+    messages
+        |> List.foldl
+            (\msg ( model_, cmds ) ->
+                updateFn msg model_
+                    |> Tuple.mapSecond (\v -> v :: cmds)
+            )
+            ( model
+            , [ cmd ]
+            )
+        |> Tuple.mapSecond Cmd.batch
