@@ -1,4 +1,18 @@
-module MemoryImage.FileSystem exposing (Image, Msg, close, image, init, sendMessage, subscriptions, update)
+module MemoryImage.FileSystem exposing
+    ( Image, image
+    , Msg, init, update, subscriptions
+    , close, sendMessage
+    )
+
+{-|
+
+@docs Image, image
+
+@docs Msg, init, update, subscriptions
+
+@docs close, sendMessage
+
+-}
 
 import Console
 import FileSystem
