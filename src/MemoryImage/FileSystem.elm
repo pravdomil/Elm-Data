@@ -96,7 +96,16 @@ type Status
 
 init : MemoryImage.Config msg a -> FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
 init config path =
-    lifecycle config (Image (Model path NoImage Running))
+    let
+        ( image_, cmd ) =
+            lifecycle config (Image (Model path NoImage Running))
+    in
+    ( image_
+    , Cmd.batch
+        [ cmd
+        , Process.Extra.onBeforeExit SaveImage_
+        ]
+    )
 
 
 
@@ -252,21 +261,9 @@ update config initFn updateFn msg (Image a) =
                     )
 
         PleaseClose ->
-            case a.image of
-                NoImage ->
-                    ( Image { a | status = Exiting }
-                    , Cmd.none
-                    )
-
-                LoadingImage _ b ->
-                    ( Image { a | status = Exiting, image = LoadingImage (Just SaveImage) b }
-                    , Cmd.none
-                    )
-
-                ReadyImage _ b c ->
-                    ( Image { a | status = Exiting, image = ReadyImage (Just SaveImage) b c }
-                    , Cmd.none
-                    )
+            ( Image { a | status = Exiting }
+            , Cmd.none
+            )
 
         NoOperation ->
             ( Image a
