@@ -20,6 +20,7 @@ import FileSystem.Handle
 import JavaScript
 import Json.Encode
 import MemoryImage
+import Process
 import Process.Extra
 import Task
 import Time
@@ -106,6 +107,7 @@ type Msg msg
     = GotHandle (Result JavaScript.Error ( FileSystem.Handle.Handle, String ))
     | GotMessage msg
     | QueueDone (Result JavaScript.Error ())
+    | FreeHandle
     | DayElapsed
     | PleaseClose
     | NoOperation
@@ -147,7 +149,7 @@ update config initFn updateFn msg (Image a) =
                                         Nothing ->
                                             MemoryImage.init initFn
                                     )
-                                        |> updateMultiple (MemoryImage.update updateFn) messages
+                                        |> updateMultiple (MemoryImage.update updateFn) (List.reverse messages)
                             in
                             ( Image { a | image = ReadyImage queue (ReadyHandle handle) image_ }
                             , cmd |> Cmd.map GotMessage
@@ -209,10 +211,31 @@ update config initFn updateFn msg (Image a) =
                             )
 
                         Err d ->
-                            ( Image { a | image = ReadyImage (Just SaveImage) (ReadyHandle (handleToHandle handle)) image_ }
-                            , Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
-                                |> Task.attempt (\_ -> NoOperation)
+                            ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
+                            , Cmd.batch
+                                [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
+                                    |> Task.attempt (\_ -> NoOperation)
+                                , Process.sleep 1000
+                                    |> Task.perform (\() -> FreeHandle)
+                                ]
                             )
+
+        FreeHandle ->
+            case a.image of
+                NoImage ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
+                LoadingImage _ _ ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
+                ReadyImage queue handle memoryImage ->
+                    ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) memoryImage }
+                    , Cmd.none
+                    )
 
         DayElapsed ->
             case a.image of
@@ -330,7 +353,10 @@ doQueue config handle image_ queue a =
                     let
                         data : String
                         data =
-                            encodeMessages config (first :: rest)
+                            (first :: rest)
+                                |> List.reverse
+                                |> List.map (\v -> v |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n")
+                                |> String.join ""
                     in
                     ( Image { a | image = ReadyImage Nothing (BusyHandle c) image_ }
                     , FileSystem.Handle.write data c
@@ -416,14 +442,6 @@ queueAddLogMessage data a =
 
         Nothing ->
             Just (LogMessage data [])
-
-
-encodeMessages : MemoryImage.Config msg a -> List msg -> String
-encodeMessages config a =
-    a
-        |> List.reverse
-        |> List.map (\v -> v |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n")
-        |> String.join ""
 
 
 
