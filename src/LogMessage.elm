@@ -6,6 +6,7 @@ import Id
 import Id.Random
 import JavaScript
 import JavaScript.Codec
+import Json.Decode
 import Task
 import Time
 import Time.Codec
@@ -14,8 +15,12 @@ import Time.Codec
 type alias LogMessage =
     { id : Id.Id ()
     , time : Time.Posix
-    , related : List (Id.Id ())
+
+    --
     , type_ : Type
+    , name : Name
+    , details : Details
+    , related : List (Id.Id ())
     }
 
 
@@ -24,34 +29,53 @@ codec =
     Codec.object LogMessage
         |> Codec.field "id" .id Id.codec
         |> Codec.field "time" .time Time.Codec.posix
-        |> Codec.field "related" .related (Codec.list Id.codec)
         |> Codec.field "type_" .type_ typeCodec
+        |> Codec.field "name" .name nameCodec
+        |> Codec.field "details" .details detailsCodec
+        |> Codec.field "related" .related (Codec.list Id.codec)
         |> Codec.buildObject
 
 
-type Type
-    = Info String
-    | Warning String
-    | Error String JavaScript.Error
+
+--
 
 
-typeCodec : Codec.Codec Type
-typeCodec =
+type Name
+    = Name String
+
+
+nameCodec : Codec.Codec Name
+nameCodec =
+    Codec.string |> Codec.map Name (\(Name v) -> v)
+
+
+
+--
+
+
+type Details
+    = Details String
+    | JsonDecodeError Json.Decode.Error
+    | JavaScriptError JavaScript.Error
+
+
+detailsCodec : Codec.Codec Details
+detailsCodec =
     Codec.custom
         (\fn1 fn2 fn3 v ->
             case v of
-                Info v1 ->
+                Details v1 ->
                     fn1 v1
 
-                Warning v1 ->
+                JsonDecodeError v1 ->
                     fn2 v1
 
-                Error v1 v2 ->
-                    fn3 v1 v2
+                JavaScriptError v1 ->
+                    fn3 v1
         )
-        |> Codec.variant1 "Info" Info Codec.string
-        |> Codec.variant1 "Warning" Warning Codec.string
-        |> Codec.variant2 "Error" Error Codec.string JavaScript.Codec.errorCodec
+        |> Codec.variant1 "Details" Details Codec.string
+        |> Codec.variant1 "JsonDecodeError" JsonDecodeError JavaScript.Codec.jsonDecodeErrorCodec
+        |> Codec.variant1 "JavaScriptError" JavaScriptError JavaScript.Codec.errorCodec
         |> Codec.buildCustom
 
 
@@ -59,22 +83,46 @@ typeCodec =
 --
 
 
-log : List (Id.Id ()) -> Type -> Task.Task x ()
-log ids type_ =
+type Type
+    = Info
+    | Warning
+    | Error
+
+
+typeCodec : Codec.Codec Type
+typeCodec =
+    Codec.custom
+        (\fn1 fn2 fn3 v ->
+            case v of
+                Info ->
+                    fn1
+
+                Warning ->
+                    fn2
+
+                Error ->
+                    fn3
+        )
+        |> Codec.variant0 "Info" Info
+        |> Codec.variant0 "Warning" Warning
+        |> Codec.variant0 "Error" Error
+        |> Codec.buildCustom
+
+
+
+--
+
+
+log : Type -> Name -> Details -> List (Id.Id ()) -> Task.Task x ()
+log type_ name details related =
     let
         message_ : Task.Task x LogMessage
         message_ =
             Task.map2
                 (\v v2 ->
-                    { id = v
-                    , time = v2
-                    , related = ids
-                    , type_ = type_
-                    }
+                    LogMessage v v2 type_ name details related
                 )
-                (Id.Random.generate
-                    |> Task.onError (\_ -> Task.succeed (Id.fromString ""))
-                )
+                Id.Random.generate
                 Time.now
     in
     message_
@@ -86,13 +134,13 @@ log ids type_ =
                         v |> Codec.encodeToString 0 codec
                 in
                 (case v.type_ of
-                    Info _ ->
+                    Info ->
                         Console.log data
 
-                    Warning _ ->
+                    Warning ->
                         Console.log data
 
-                    Error _ _ ->
+                    Error ->
                         Console.logError data
                 )
                     |> Task.map (\_ -> ())
