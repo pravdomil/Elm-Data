@@ -328,17 +328,9 @@ lifecycle config (Image a) =
                             doQueue config handle image_ b a
 
                         Nothing ->
-                            case handle of
-                                ReadyHandle c ->
-                                    ( Image { a | image = NoImage }
-                                    , FileSystem.Handle.close c
-                                        |> Task.attempt (\_ -> NoOperation)
-                                    )
-
-                                BusyHandle _ ->
-                                    ( Image a
-                                    , Cmd.none
-                                    )
+                            ( Image a
+                            , Cmd.none
+                            )
 
 
 doQueue : MemoryImage.Config msg a -> Handle -> MemoryImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
