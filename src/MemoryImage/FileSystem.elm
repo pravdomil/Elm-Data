@@ -157,7 +157,7 @@ update config initFn updateFn msg (Image a) =
 
                         Err c ->
                             ( Image a
-                            , LogMessage.log [] (LogMessage.Error "Cannot load memory image." c)
+                            , LogMessage.log LogMessage.Error (LogMessage.Name "Cannot load memory image.") (LogMessage.JavaScriptError c) []
                                 |> Task.andThen (\() -> Process.Extra.exit 1)
                                 |> Task.attempt (\_ -> NoOperation)
                             )
@@ -210,7 +210,7 @@ update config initFn updateFn msg (Image a) =
                         Err d ->
                             ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
                             , Cmd.batch
-                                [ LogMessage.log [] (LogMessage.Error "Cannot save memory image." d)
+                                [ LogMessage.log LogMessage.Error (LogMessage.Name "Cannot save memory image.") (LogMessage.JavaScriptError d) []
                                     |> Task.attempt (\_ -> NoOperation)
                                 , Process.sleep 1000
                                     |> Task.perform (\() -> FreeHandle)
