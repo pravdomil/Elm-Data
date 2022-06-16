@@ -53,11 +53,7 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        _ =
-            Debug.log "Image" (model.image |> MemoryImage.FileSystem.image)
-    in
-    case msg of
+    (case msg of
         GotMemoryImageMsg b ->
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
@@ -76,6 +72,16 @@ update msg model =
             ( model
             , Cmd.none
             )
+    )
+        |> (\( v, cmd ) ->
+                let
+                    _ =
+                        Debug.log "Image" (v.image |> MemoryImage.FileSystem.image)
+                in
+                ( v
+                , cmd
+                )
+           )
 
 
 
