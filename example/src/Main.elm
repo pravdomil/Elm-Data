@@ -35,7 +35,7 @@ init () =
     ( Model Running image
     , Cmd.batch
         [ cmd |> Cmd.map GotMemoryImageMsg
-        , Process.Extra.onExit ProcessExit
+        , Process.Extra.onExitSignal ExitSignal
         ]
     )
 
@@ -46,7 +46,7 @@ init () =
 
 type Msg
     = GotMemoryImageMsg (MemoryImage.FileSystem.Msg ImageMsg)
-    | ProcessExit
+    | ExitSignal
     | Tick
     | NoOperation
 
@@ -58,7 +58,7 @@ update msg model =
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
 
-        ProcessExit ->
+        ExitSignal ->
             ( { model | status = Exiting }
             , MemoryImage.FileSystem.close |> Cmd.map GotMemoryImageMsg
             )
