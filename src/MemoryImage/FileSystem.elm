@@ -159,8 +159,17 @@ update config initFn updateFn msg (Image a) =
                                             MemoryImage.init initFn
                                     )
                                         |> updateMultiple (MemoryImage.update updateFn) (List.reverse messages)
+
+                                nextQueue : Queue msg a
+                                nextQueue =
+                                    case c of
+                                        Just _ ->
+                                            queue
+
+                                        Nothing ->
+                                            SaveImage
                             in
-                            ( Image { a | image = ReadyImage queue (ReadyHandle handle) image_ }
+                            ( Image { a | image = ReadyImage nextQueue (ReadyHandle handle) image_ }
                             , cmd |> Cmd.map GotMessage
                             )
 
