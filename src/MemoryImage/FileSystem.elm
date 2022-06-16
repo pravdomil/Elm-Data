@@ -229,8 +229,8 @@ update config initFn updateFn msg (Image a) =
                     , Cmd.none
                     )
 
-                ReadyImage queue handle memoryImage ->
-                    ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) memoryImage }
+                ReadyImage queue handle image_ ->
+                    ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) image_ }
                     , Cmd.none
                     )
 
@@ -246,8 +246,8 @@ update config initFn updateFn msg (Image a) =
                     , Cmd.none
                     )
 
-                ReadyImage _ handle memoryImage ->
-                    ( Image { a | image = ReadyImage (Just SaveImage) handle memoryImage }
+                ReadyImage _ handle image_ ->
+                    ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
                     , Cmd.none
                     )
 
