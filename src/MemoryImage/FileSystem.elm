@@ -14,7 +14,6 @@ module MemoryImage.FileSystem exposing
 
 -}
 
-import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
@@ -158,11 +157,9 @@ update config initFn updateFn msg (Image a) =
 
                         Err c ->
                             ( Image a
-                            , Cmd.batch
-                                [ LogMessage.log [] (LogMessage.Error "Cannot load memory image." c)
-                                    |> Task.andThen (\() -> Process.Extra.exit 1)
-                                    |> Task.attempt (\_ -> NoOperation)
-                                ]
+                            , LogMessage.log [] (LogMessage.Error "Cannot load memory image." c)
+                                |> Task.andThen (\() -> Process.Extra.exit 1)
+                                |> Task.attempt (\_ -> NoOperation)
                             )
 
                 ReadyImage _ _ _ ->
