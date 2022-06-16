@@ -66,8 +66,8 @@ type alias Model msg a =
 
 type ImageState msg a
     = NoImage
-    | LoadingImage (Maybe (Queue msg a)) (List msg)
-    | ReadyImage (Maybe (Queue msg a)) Handle (MemoryImage.MemoryImage msg a)
+    | LoadingImage (Queue msg a) (List msg)
+    | ReadyImage (Queue msg a) Handle (MemoryImage.MemoryImage msg a)
 
 
 type Handle
@@ -208,7 +208,7 @@ update config initFn updateFn msg (Image a) =
                             )
 
                         Err d ->
-                            ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
+                            ( Image { a | image = ReadyImage SaveImage handle image_ }
                             , Cmd.batch
                                 [ LogMessage.log LogMessage.Error (LogMessage.Name "Cannot save memory image.") (LogMessage.JavaScriptError d) []
                                     |> Task.attempt (\_ -> NoOperation)
@@ -242,12 +242,12 @@ update config initFn updateFn msg (Image a) =
                     )
 
                 LoadingImage _ b ->
-                    ( Image { a | image = LoadingImage (Just SaveImage) b }
+                    ( Image { a | image = LoadingImage SaveImage b }
                     , Cmd.none
                     )
 
                 ReadyImage _ handle image_ ->
-                    ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
+                    ( Image { a | image = ReadyImage SaveImage handle image_ }
                     , Cmd.none
                     )
 
@@ -290,7 +290,7 @@ lifecycle config (Image a) =
         Running ->
             case a.image of
                 NoImage ->
-                    ( Image { a | image = LoadingImage Nothing [] }
+                    ( Image { a | image = LoadingImage Empty [] }
                     , getHandle a.path
                         |> Task.attempt GotHandle
                     )
@@ -301,14 +301,7 @@ lifecycle config (Image a) =
                     )
 
                 ReadyImage queue handle image_ ->
-                    case queue of
-                        Just c ->
-                            doQueue config handle image_ c a
-
-                        Nothing ->
-                            ( Image a
-                            , Cmd.none
-                            )
+                    doQueue config handle image_ queue a
 
         Exiting ->
             case a.image of
@@ -323,14 +316,7 @@ lifecycle config (Image a) =
                     )
 
                 ReadyImage queue handle image_ ->
-                    case queue of
-                        Just b ->
-                            doQueue config handle image_ b a
-
-                        Nothing ->
-                            ( Image a
-                            , Cmd.none
-                            )
+                    doQueue config handle image_ queue a
 
 
 doQueue : MemoryImage.Config msg a -> Handle -> MemoryImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
@@ -338,6 +324,11 @@ doQueue config handle image_ queue a =
     case handle of
         ReadyHandle c ->
             case queue of
+                Empty ->
+                    ( Image a
+                    , Cmd.none
+                    )
+
                 LogMessage first rest ->
                     let
                         data : String
@@ -347,7 +338,7 @@ doQueue config handle image_ queue a =
                                 |> List.map (\v -> v |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n")
                                 |> String.join ""
                     in
-                    ( Image { a | image = ReadyImage Nothing (BusyHandle c) image_ }
+                    ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
                     , FileSystem.Handle.write data c
                         |> Task.map (\_ -> ())
                         |> Task.attempt QueueDone
@@ -359,7 +350,7 @@ doQueue config handle image_ queue a =
                         data =
                             Json.Encode.encode 0 (config.encoder (MemoryImage.image image_))
                     in
-                    ( Image { a | image = ReadyImage Nothing (BusyHandle c) image_ }
+                    ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
                     , FileSystem.Handle.truncate c
                         |> Task.andThen (FileSystem.Handle.write data)
                         |> Task.map (\_ -> ())
@@ -414,23 +405,22 @@ getHandle path =
 
 
 type Queue msg a
-    = LogMessage msg (List msg)
+    = Empty
+    | LogMessage msg (List msg)
     | SaveImage
 
 
-queueAddLogMessage : msg -> Maybe (Queue msg a) -> Maybe (Queue msg a)
+queueAddLogMessage : msg -> Queue msg a -> Queue msg a
 queueAddLogMessage data a =
     case a of
-        Just b ->
-            case b of
-                LogMessage first rest ->
-                    Just (LogMessage data (first :: rest))
+        Empty ->
+            LogMessage data []
 
-                SaveImage ->
-                    Just SaveImage
+        LogMessage first rest ->
+            LogMessage data (first :: rest)
 
-        Nothing ->
-            Just (LogMessage data [])
+        SaveImage ->
+            SaveImage
 
 
 
