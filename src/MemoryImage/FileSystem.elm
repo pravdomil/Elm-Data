@@ -108,7 +108,7 @@ type Msg msg
     | GotMessage msg
     | QueueDone (Result JavaScript.Error ())
     | FreeHandle
-    | DayElapsed
+    | SaveImage_
     | PleaseClose
     | NoOperation
 
@@ -234,7 +234,7 @@ update config initFn updateFn msg (Image a) =
                     , Cmd.none
                     )
 
-        DayElapsed ->
+        SaveImage_ ->
             case a.image of
                 NoImage ->
                     ( Image a
@@ -380,7 +380,7 @@ subscriptions : Image msg a -> Sub (Msg msg)
 subscriptions (Image a) =
     case a.status of
         Running ->
-            Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
+            Time.every (1000 * 60 * 60 * 24) (\_ -> SaveImage_)
 
         Exiting ->
             Sub.none
