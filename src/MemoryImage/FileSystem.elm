@@ -19,6 +19,7 @@ import FileSystem
 import FileSystem.Handle
 import JavaScript
 import Json.Encode
+import LogMessage
 import MemoryImage
 import Process
 import Process.Extra
@@ -158,9 +159,8 @@ update config initFn updateFn msg (Image a) =
                         Err c ->
                             ( Image a
                             , Cmd.batch
-                                [ Process.Extra.exit 1
-                                    |> Task.attempt (\_ -> NoOperation)
-                                , Console.logError ("Cannot load memory image. See details:\n" ++ JavaScript.errorToString c)
+                                [ LogMessage.log [] (LogMessage.Error "Cannot load memory image." c)
+                                    |> Task.andThen (\() -> Process.Extra.exit 1)
                                     |> Task.attempt (\_ -> NoOperation)
                                 ]
                             )
@@ -213,7 +213,7 @@ update config initFn updateFn msg (Image a) =
                         Err d ->
                             ( Image { a | image = ReadyImage (Just SaveImage) handle image_ }
                             , Cmd.batch
-                                [ Console.logError ("Cannot save memory image. See details:\n" ++ JavaScript.errorToString d)
+                                [ LogMessage.log [] (LogMessage.Error "Cannot save memory image." d)
                                     |> Task.attempt (\_ -> NoOperation)
                                 , Process.sleep 1000
                                     |> Task.perform (\() -> FreeHandle)
