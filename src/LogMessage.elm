@@ -62,7 +62,7 @@ typeCodec =
 log : List (Id.Id ()) -> Type -> Task.Task x ()
 log ids type_ =
     let
-        message_ : Task.Task JavaScript.Error LogMessage
+        message_ : Task.Task x LogMessage
         message_ =
             Task.map2
                 (\v v2 ->
@@ -85,7 +85,7 @@ log ids type_ =
                     data =
                         v |> Codec.encodeToString 0 codec
                 in
-                case v.type_ of
+                (case v.type_ of
                     Info _ ->
                         Console.log data
 
@@ -94,6 +94,7 @@ log ids type_ =
 
                     Error _ _ ->
                         Console.logError data
+                )
+                    |> Task.map (\_ -> ())
+                    |> Task.onError (\_ -> Task.succeed ())
             )
-        |> Task.map (\_ -> ())
-        |> Task.onError (\_ -> Task.succeed ())
