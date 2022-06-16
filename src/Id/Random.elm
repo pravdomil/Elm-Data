@@ -1,4 +1,4 @@
-module Id.Random exposing (Error(..), generate)
+module Id.Random exposing (generate)
 
 {-| Generate 125-bit random ID.
 
@@ -18,14 +18,10 @@ import Json.Encode
 import Task
 
 
-type Error
-    = JavaScriptError JavaScript.Error
-
-
-generate : Task.Task Error (Id.Id a)
+generate : Task.Task x (Id.Id a)
 generate =
     JavaScript.run
-        "(function() { var a = new Int32Array(5); crypto.getRandomValues(a); return Array.from(a) })()"
+        "(function() { var a = new Int32Array(5); (require ? require('crypto').webcrypto : crypto).getRandomValues(a); return Array.from(a) })()"
         Json.Encode.null
         (Json.Decode.map5
             fromIntegers
@@ -35,7 +31,19 @@ generate =
             (Json.Decode.index 3 Json.Decode.int)
             (Json.Decode.index 4 Json.Decode.int)
         )
-        |> Task.mapError JavaScriptError
+        |> Task.onError
+            (\_ ->
+                JavaScript.run
+                    "Math.random()"
+                    Json.Encode.null
+                    (Json.Decode.float
+                        |> Json.Decode.map (String.fromFloat >> String.dropLeft 2 >> Id.fromString)
+                    )
+            )
+        |> Task.onError
+            (\_ ->
+                Task.succeed (Id.fromString "")
+            )
 
 
 fromIntegers : Int -> Int -> Int -> Int -> Int -> Id.Id a
