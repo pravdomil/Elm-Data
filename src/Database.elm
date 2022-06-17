@@ -40,22 +40,22 @@ documents (Database _ db) =
 --
 
 
-readById : Id.Id a -> Database index a -> Maybe a
-readById id a =
-    a |> documents |> Dict.Any.get Id.toString id
+readById : Database index a -> Id.Id a -> Maybe a
+readById db a =
+    db |> documents |> Dict.Any.get Id.toString a
 
 
-readByIndex : (index -> comparable) -> index -> Database index a -> List a
-readByIndex toComparable index_ ((Database _ db) as a) =
-    readIdsByIndex toComparable index_ a |> List.filterMap (\v -> db |> Dict.Any.get Id.toString v)
+readByIndex : (index -> comparable) -> Database index a -> index -> List a
+readByIndex toComparable db a =
+    readIdsByIndex toComparable db a |> List.filterMap (readById db)
 
 
-readIdsByIndex : (index -> comparable) -> index -> Database index a -> List (Id.Id a)
-readIdsByIndex toComparable index_ (Database index _) =
+readIdsByIndex : (index -> comparable) -> Database index a -> index -> List (Id.Id a)
+readIdsByIndex toComparable (Database index _) a =
     let
         index__ : comparable
         index__ =
-            toComparable index_
+            toComparable a
 
         toOrder : ( index, Id.Id a ) -> Order
         toOrder ( i, _ ) =
