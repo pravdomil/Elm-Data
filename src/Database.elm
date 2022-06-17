@@ -1,6 +1,6 @@
 module Database exposing
     ( Database, empty, codec, Config
-    , readById, readByIndex, readIdsByIndex, documents
+    , documentById, documentsByIndex, idsByIndex, documents
     , insert, insertMany
     , remove, removeMany
     )
@@ -9,7 +9,7 @@ module Database exposing
 
 @docs Database, empty, codec, Config
 
-@docs readById, readByIndex, readIdsByIndex, documents
+@docs documentById, documentsByIndex, idsByIndex, documents
 
 @docs insert, insertMany
 
@@ -40,18 +40,18 @@ documents (Database _ db) =
 --
 
 
-readById : Database index a -> Id.Id a -> Maybe a
-readById db a =
+documentById : Database index a -> Id.Id a -> Maybe a
+documentById db a =
     db |> documents |> Dict.Any.get Id.toString a
 
 
-readByIndex : (index -> comparable) -> Database index a -> index -> List a
-readByIndex toComparable db a =
-    readIdsByIndex toComparable db a |> List.filterMap (readById db)
+documentsByIndex : (index -> comparable) -> Database index a -> index -> List a
+documentsByIndex toComparable db a =
+    idsByIndex toComparable db a |> List.filterMap (documentById db)
 
 
-readIdsByIndex : (index -> comparable) -> Database index a -> index -> List (Id.Id a)
-readIdsByIndex toComparable (Database index _) a =
+idsByIndex : (index -> comparable) -> Database index a -> index -> List (Id.Id a)
+idsByIndex toComparable (Database index _) a =
     let
         index__ : comparable
         index__ =
