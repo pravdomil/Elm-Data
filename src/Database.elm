@@ -1,4 +1,21 @@
-module Database exposing (Config, Database, codec, documents, empty, insert, insertMany, readDocuments, readIds, remove, removeMany)
+module Database exposing
+    ( Database, empty, codec, Config
+    , readById, readByIndex, readIdsByIndex, documents
+    , insert, insertMany
+    , remove, removeMany
+    )
+
+{-|
+
+@docs Database, empty, codec, Config
+
+@docs readById, readByIndex, readIdsByIndex, documents
+
+@docs insert, insertMany
+
+@docs remove, removeMany
+
+-}
 
 import Codec
 import Dict.Any
@@ -23,13 +40,18 @@ documents (Database _ db) =
 --
 
 
-readDocuments : (index -> comparable) -> index -> Database index a -> List a
-readDocuments toComparable index_ ((Database _ db) as a) =
-    readIds toComparable index_ a |> List.filterMap (\v -> db |> Dict.Any.get Id.toString v)
+readById : Id.Id a -> Database index a -> Maybe a
+readById id a =
+    a |> documents |> Dict.Any.get Id.toString id
 
 
-readIds : (index -> comparable) -> index -> Database index a -> List (Id.Id a)
-readIds toComparable index_ (Database index _) =
+readByIndex : (index -> comparable) -> index -> Database index a -> List a
+readByIndex toComparable index_ ((Database _ db) as a) =
+    readIdsByIndex toComparable index_ a |> List.filterMap (\v -> db |> Dict.Any.get Id.toString v)
+
+
+readIdsByIndex : (index -> comparable) -> index -> Database index a -> List (Id.Id a)
+readIdsByIndex toComparable index_ (Database index _) =
     let
         index__ : comparable
         index__ =
@@ -115,6 +137,10 @@ insert config toComparable new (Database index db) =
 insertMany : Config index a -> (index -> comparable) -> List a -> Database index a -> Database index a
 insertMany config toComparable docs a =
     docs |> List.foldl (insert config toComparable) a
+
+
+
+--
 
 
 remove : Config index a -> (index -> comparable) -> Id.Id a -> Database index a -> Database index a
