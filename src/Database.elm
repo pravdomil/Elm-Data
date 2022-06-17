@@ -45,13 +45,13 @@ documentById db a =
     db |> documents |> Dict.Any.get Id.toString a
 
 
-documentsByIndex : (index -> comparable) -> Database index a -> index -> List a
-documentsByIndex toComparable db a =
-    idsByIndex toComparable db a |> List.filterMap (documentById db)
+documentsByIndex : Database index a -> (index -> comparable) -> index -> List a
+documentsByIndex db toComparable a =
+    idsByIndex db toComparable a |> List.filterMap (documentById db)
 
 
-idsByIndex : (index -> comparable) -> Database index a -> index -> List (Id.Id a)
-idsByIndex toComparable (Database index _) a =
+idsByIndex : Database index a -> (index -> comparable) -> index -> List (Id.Id a)
+idsByIndex (Database index _) toComparable a =
     let
         index__ : comparable
         index__ =
