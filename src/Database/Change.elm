@@ -24,13 +24,13 @@ create fn a =
 
 
 change : (a -> a) -> Change a -> Change a
-change fn (Change before after) =
-    Change before (fn after)
+change fn (Change before_ after_) =
+    Change before_ (fn after_)
 
 
 map : (a -> b) -> Change a -> Change b
-map fn (Change before after) =
-    Change (fn before) (fn after)
+map fn (Change before_ after_) =
+    Change (fn before_) (fn after_)
 
 
 
@@ -42,12 +42,12 @@ type alias Merger a =
 
 
 applyChange : Merger a
-applyChange (Change before after) current =
-    if before == after then
+applyChange (Change before_ after_) current =
+    if before_ == after_ then
         current
 
     else
-        after
+        after_
 
 
 applyFieldChange : (a -> b) -> Change a -> a -> b
@@ -60,16 +60,16 @@ applyFieldChange fn change_ a =
 
 
 applyAnyDictChange : (k -> comparable) -> Merger a -> Merger (Dict.Any.Dict k a)
-applyAnyDictChange toComparable merger (Change before after) a =
+applyAnyDictChange toComparable merger (Change before_ after_) a =
     Dict.Any.merge
         toComparable
         (\k _ acc -> Dict.Any.remove toComparable k acc)
-        (\k before_ after_ acc ->
-            Dict.Any.update toComparable k (Maybe.map (merger (Change before_ after_))) acc
+        (\k before__ after__ acc ->
+            Dict.Any.update toComparable k (Maybe.map (merger (Change before__ after__))) acc
         )
         (\k v acc -> Dict.Any.insert toComparable k v acc)
-        before
-        after
+        before_
+        after_
         a
 
 
