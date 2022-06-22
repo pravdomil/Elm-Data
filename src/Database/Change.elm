@@ -1,16 +1,17 @@
 module Database.Change exposing
-    ( Change, create, change, before, after, map
+    ( Change, create, change, before, after, map, codec
     , Applier, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
     )
 
 {-|
 
-@docs Change, create, change, before, after, map
+@docs Change, create, change, before, after, map, codec
 
 @docs Applier, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
 
 -}
 
+import Codec
 import Dict.Any
 
 
@@ -41,6 +42,18 @@ before (Change a _) =
 after : Change a -> a
 after (Change _ a) =
     a
+
+
+codec : Codec.Codec a -> Codec.Codec (Change a)
+codec a =
+    Codec.custom
+        (\fn1 v ->
+            case v of
+                Change v1 v2 ->
+                    fn1 v1 v2
+        )
+        |> Codec.variant2 "Change" Change a a
+        |> Codec.buildCustom
 
 
 
