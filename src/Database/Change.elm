@@ -1,11 +1,11 @@
 module Database.Change exposing
-    ( Change, create, change, map
+    ( Change, create, change, before, after, map
     , Merger, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
     )
 
 {-|
 
-@docs Change, create, change, map
+@docs Change, create, change, before, after, map
 
 @docs Merger, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
 
@@ -31,6 +31,16 @@ change fn (Change before_ after_) =
 map : (a -> b) -> Change a -> Change b
 map fn (Change before_ after_) =
     Change (fn before_) (fn after_)
+
+
+before : Change a -> a
+before (Change a _) =
+    a
+
+
+after : Change a -> a
+after (Change _ a) =
+    a
 
 
 
