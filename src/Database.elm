@@ -45,21 +45,21 @@ documentById db a =
     db |> documents |> Dict.Any.get Id.toString a
 
 
-documentsByIndex : Database index a -> (index -> comparable) -> index -> List a
-documentsByIndex db toComparable a =
-    idsByIndex db toComparable a |> List.filterMap (documentById db)
+documentsByIndex : Config comparable index a -> Database index a -> index -> List a
+documentsByIndex config db a =
+    idsByIndex config db a |> List.filterMap (documentById db)
 
 
-idsByIndex : Database index a -> (index -> comparable) -> index -> List (Id.Id a)
-idsByIndex (Database index _) toComparable a =
+idsByIndex : Config comparable index a -> Database index a -> index -> List (Id.Id a)
+idsByIndex config (Database index _) a =
     let
         index__ : comparable
         index__ =
-            toComparable a
+            config.indexToComparable a
 
         toOrder : ( index, Id.Id a ) -> Order
         toOrder ( i, _ ) =
-            compare index__ (toComparable i)
+            compare index__ (config.indexToComparable i)
     in
     index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
 
@@ -68,14 +68,15 @@ idsByIndex (Database index _) toComparable a =
 --
 
 
-type alias Config index a =
+type alias Config comparable index a =
     { toId : a -> Id.Id a
     , toIndexes : a -> List index
+    , indexToComparable : index -> comparable
     }
 
 
-insert : Config index a -> (index -> comparable) -> a -> Database index a -> Database index a
-insert config toComparable new (Database index db) =
+insert : Config comparable index a -> a -> Database index a -> Database index a
+insert config new (Database index db) =
     let
         id : Id.Id a
         id =
@@ -89,7 +90,7 @@ insert config toComparable new (Database index db) =
                         (\v acc ->
                             acc
                                 |> Dict.Any.remove
-                                    (Tuple.mapBoth toComparable Id.toString)
+                                    (Tuple.mapBoth config.indexToComparable Id.toString)
                                     ( v, id )
                         )
                         index
@@ -98,7 +99,7 @@ insert config toComparable new (Database index db) =
                                 (\v2 acc ->
                                     acc
                                         |> Dict.Any.insert
-                                            (Tuple.mapBoth toComparable Id.toString)
+                                            (Tuple.mapBoth config.indexToComparable Id.toString)
                                             ( v2, id )
                                             ()
                                 )
@@ -120,7 +121,7 @@ insert config toComparable new (Database index db) =
                         (\v acc ->
                             acc
                                 |> Dict.Any.insert
-                                    (Tuple.mapBoth toComparable Id.toString)
+                                    (Tuple.mapBoth config.indexToComparable Id.toString)
                                     ( v, id )
                                     ()
                         )
@@ -134,17 +135,17 @@ insert config toComparable new (Database index db) =
                 )
 
 
-insertMany : Config index a -> (index -> comparable) -> List a -> Database index a -> Database index a
-insertMany config toComparable docs a =
-    docs |> List.foldl (insert config toComparable) a
+insertMany : Config comparable index a -> List a -> Database index a -> Database index a
+insertMany config docs a =
+    docs |> List.foldl (insert config) a
 
 
 
 --
 
 
-remove : Config index a -> (index -> comparable) -> Id.Id a -> Database index a -> Database index a
-remove config toComparable id (Database index db) =
+remove : Config comparable index a -> Id.Id a -> Database index a -> Database index a
+remove config id (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
@@ -153,7 +154,7 @@ remove config toComparable id (Database index db) =
                         (\v acc ->
                             acc
                                 |> Dict.Any.remove
-                                    (Tuple.mapBoth toComparable Id.toString)
+                                    (Tuple.mapBoth config.indexToComparable Id.toString)
                                     ( v, id )
                         )
                         index
@@ -170,18 +171,18 @@ remove config toComparable id (Database index db) =
                 db
 
 
-removeMany : Config index a -> (index -> comparable) -> List (Id.Id a) -> Database index a -> Database index a
-removeMany config toComparable ids a =
-    ids |> List.foldl (remove config toComparable) a
+removeMany : Config comparable index a -> List (Id.Id a) -> Database index a -> Database index a
+removeMany config ids a =
+    ids |> List.foldl (remove config) a
 
 
 
 --
 
 
-codec : Config index a -> (index -> comparable) -> Codec.Codec a -> Codec.Codec (Database index a)
-codec config toComparable a =
+codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database index a)
+codec config a =
     Codec.list a
         |> Codec.map
-            (\v -> empty |> insertMany config toComparable v)
+            (\v -> empty |> insertMany config v)
             (\(Database _ db) -> db |> Dict.Any.values)
