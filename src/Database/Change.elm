@@ -1,13 +1,13 @@
 module Database.Change exposing
     ( Change, create, change, before, after, map
-    , Merger, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
+    , Applier, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
     )
 
 {-|
 
 @docs Change, create, change, before, after, map
 
-@docs Merger, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
+@docs Applier, applyChange, applyFieldChange, applyAnyDictChange, applyFieldAnyDictChange
 
 -}
 
@@ -47,11 +47,11 @@ after (Change _ a) =
 --
 
 
-type alias Merger a =
+type alias Applier a =
     Change a -> a -> a
 
 
-applyChange : Merger a
+applyChange : Applier a
 applyChange (Change before_ after_) current =
     if before_ == after_ then
         current
@@ -69,7 +69,7 @@ applyFieldChange fn change_ a =
 --
 
 
-applyAnyDictChange : (k -> comparable) -> Merger a -> Merger (Dict.Any.Dict k a)
+applyAnyDictChange : (k -> comparable) -> Applier a -> Applier (Dict.Any.Dict k a)
 applyAnyDictChange toComparable merger (Change before_ after_) a =
     Dict.Any.merge
         toComparable
@@ -83,6 +83,6 @@ applyAnyDictChange toComparable merger (Change before_ after_) a =
         a
 
 
-applyFieldAnyDictChange : (k -> comparable) -> Merger b -> (a -> Dict.Any.Dict k b) -> Change a -> a -> Dict.Any.Dict k b
+applyFieldAnyDictChange : (k -> comparable) -> Applier b -> (a -> Dict.Any.Dict k b) -> Change a -> a -> Dict.Any.Dict k b
 applyFieldAnyDictChange toComparable merger fn change_ a =
     applyAnyDictChange toComparable merger (map fn change_) (fn a)
