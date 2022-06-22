@@ -70,12 +70,12 @@ applyFieldChange fn change_ a =
 
 
 applyAnyDictChange : (k -> comparable) -> Applier a -> Applier (Dict.Any.Dict k a)
-applyAnyDictChange toComparable merger (Change before_ after_) a =
+applyAnyDictChange toComparable applier (Change before_ after_) a =
     Dict.Any.merge
         toComparable
         (\k _ acc -> Dict.Any.remove toComparable k acc)
         (\k before__ after__ acc ->
-            Dict.Any.update toComparable k (Maybe.map (merger (Change before__ after__))) acc
+            Dict.Any.update toComparable k (Maybe.map (applier (Change before__ after__))) acc
         )
         (\k v acc -> Dict.Any.insert toComparable k v acc)
         before_
@@ -84,5 +84,5 @@ applyAnyDictChange toComparable merger (Change before_ after_) a =
 
 
 applyFieldAnyDictChange : (k -> comparable) -> Applier b -> (a -> Dict.Any.Dict k b) -> Change a -> a -> Dict.Any.Dict k b
-applyFieldAnyDictChange toComparable merger fn change_ a =
-    applyAnyDictChange toComparable merger (map fn change_) (fn a)
+applyFieldAnyDictChange toComparable applier fn change_ a =
+    applyAnyDictChange toComparable applier (map fn change_) (fn a)
