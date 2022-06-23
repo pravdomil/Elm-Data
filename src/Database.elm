@@ -1,7 +1,6 @@
 module Database exposing
     ( Database, empty, codec, Config
     , documentById, documentsByIndex, idsByIndex, documents
-    , change
     , insert, insertMany
     , remove, removeMany
     )
@@ -12,8 +11,6 @@ module Database exposing
 
 @docs documentById, documentsByIndex, idsByIndex, documents
 
-@docs change
-
 @docs insert, insertMany
 
 @docs remove, removeMany
@@ -21,7 +18,6 @@ module Database exposing
 -}
 
 import Codec
-import Database.Change
 import Dict.Any
 import Id
 
@@ -77,32 +73,6 @@ type alias Config comparable index a =
 
 
 --
-
-
-change : Config comparable index a -> Database.Change.Applier a -> List (Database.Change.Change (Maybe a)) -> Database index a -> Database index a
-change config applier changes db =
-    let
-        fn : Database.Change.Change (Maybe a) -> Database index a -> Database index a
-        fn x acc =
-            case ( x |> Database.Change.before, x |> Database.Change.after ) of
-                ( Nothing, Nothing ) ->
-                    acc
-
-                ( Just before, Nothing ) ->
-                    acc |> remove config (config.toId before)
-
-                ( Nothing, Just after ) ->
-                    acc |> insert config after
-
-                ( Just before, Just after ) ->
-                    case documentById acc (config.toId before) of
-                        Just b ->
-                            acc |> insert config (applier (before |> Database.Change.create (\_ -> after)) b)
-
-                        Nothing ->
-                            acc
-    in
-    changes |> List.foldl fn db
 
 
 insert : Config comparable index a -> a -> Database index a -> Database index a
