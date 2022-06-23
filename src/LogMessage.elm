@@ -131,7 +131,7 @@ log type_ name details related =
                 let
                     data : String
                     data =
-                        v |> Codec.encodeToString 0 codec
+                        Codec.encodeToString 0 codec v ++ "\n"
                 in
                 (case v.type_ of
                     Info ->
