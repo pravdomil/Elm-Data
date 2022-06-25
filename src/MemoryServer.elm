@@ -3,12 +3,13 @@ module MemoryServer exposing (..)
 import FileSystem
 import Http.Server
 import Http.Server.Internals
+import Json.Decode
 import MemoryImage
 import MemoryImage.FileSystem
 import Process.Extra
 
 
-worker : Config msg a -> Program () (Model msg a) (Msg msg)
+worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg msg)
 worker config =
     Platform.worker
         { init = init config
@@ -31,7 +32,7 @@ type alias Config msg a =
     , imagePath : FileSystem.Path
 
     --
-    , serverOptions : Http.Server.Internals.ListenOptions
+    , serverOptions : Json.Decode.Value -> Http.Server.Internals.Options
     , gotRequest : Http.Server.Internals.Request -> msg
     }
 
@@ -46,11 +47,11 @@ type alias Model msg a =
     }
 
 
-init : Config msg a -> () -> ( Model msg a, Cmd (Msg msg) )
-init config () =
+init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg msg) )
+init config flags =
     let
         ( server, cmd ) =
-            Http.Server.init config.serverOptions
+            Http.Server.init (config.serverOptions flags)
 
         ( image, cmd2 ) =
             MemoryImage.FileSystem.init config.image config.imagePath
