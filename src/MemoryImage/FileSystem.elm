@@ -14,11 +14,11 @@ module MemoryImage.FileSystem exposing
 
 -}
 
+import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
 import Json.Encode
-import LogMessage
 import MemoryImage
 import Process
 import Process.Extra
@@ -175,8 +175,8 @@ update config initFn updateFn msg (Image a) =
 
                         Err c ->
                             ( Image a
-                            , LogMessage.log LogMessage.Error (LogMessage.Name "Cannot load memory image.") (LogMessage.JavaScriptError c) []
-                                |> Task.andThen (\() -> Process.Extra.exit 1)
+                            , Console.logError ("Cannot load memory image. " ++ Json.Encode.encode 0 (Json.Encode.string (JavaScript.errorToString c)))
+                                |> Task.andThen (\_ -> Process.Extra.exit 1)
                                 |> Task.attempt (\_ -> NoOperation)
                             )
 
@@ -228,7 +228,7 @@ update config initFn updateFn msg (Image a) =
                         Err d ->
                             ( Image { a | image = ReadyImage SaveImage handle image_ }
                             , Cmd.batch
-                                [ LogMessage.log LogMessage.Error (LogMessage.Name "Cannot save memory image.") (LogMessage.JavaScriptError d) []
+                                [ Console.logError ("Cannot save memory image. " ++ Json.Encode.encode 0 (Json.Encode.string (JavaScript.errorToString d)))
                                     |> Task.attempt (\_ -> NoOperation)
                                 , Process.sleep 1000
                                     |> Task.perform (\() -> FreeHandle)
