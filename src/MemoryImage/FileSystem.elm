@@ -393,10 +393,10 @@ getHandle path =
         mode : FileSystem.Handle.Mode
         mode =
             FileSystem.Handle.Mode
-                FileSystem.Handle.ReadAndWrite
+                FileSystem.Handle.Read
+                FileSystem.Handle.Append
                 FileSystem.Handle.CreateIfNotExists
                 FileSystem.Handle.DoNotTruncate
-                FileSystem.Handle.Append
     in
     FileSystem.Handle.open mode path
         |> Task.andThen
