@@ -1,4 +1,4 @@
-module Reference exposing (Reference, codec, fromString, toAny, toId, toString)
+module Reference exposing (Reference, codec, fromId, fromString, toAny, toId, toString)
 
 import Codec
 import Id
@@ -11,6 +11,11 @@ type Reference a
 fromString : String -> Reference a
 fromString a =
     Reference a
+
+
+fromId : Id.Id a -> Reference a
+fromId a =
+    a |> Id.toString |> fromString
 
 
 
