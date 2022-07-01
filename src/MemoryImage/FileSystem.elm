@@ -354,7 +354,7 @@ doQueue config handle image_ queue a =
                     let
                         data : String
                         data =
-                            Json.Encode.encode 0 (config.encoder (MemoryImage.image image_))
+                            MemoryImage.toDiskImage image_ |> MemoryImage.encodeDiskImage config
                     in
                     ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
                     , FileSystem.Handle.truncate c
