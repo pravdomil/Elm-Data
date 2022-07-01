@@ -1,4 +1,4 @@
-module MemoryImage exposing (Config, DiskImage, MemoryImage, decodeDiskImage, encodeDiskImage, fromDiskImage, image, init, load, update)
+module MemoryImage exposing (Config, DiskImage, MemoryImage, decodeDiskImage, encodeDiskImage, fromDiskImage, image, init, load, toDiskImage, update)
 
 import Json.Decode
 import Json.Encode
@@ -55,6 +55,11 @@ fromDiskImage updateFn (DiskImage a messages) =
     messages
         |> List.foldl (\v1 v2 -> updateFn v1 v2 |> Tuple.first) a
         |> MemoryImage
+
+
+toDiskImage : MemoryImage msg a -> DiskImage msg a
+toDiskImage (MemoryImage a) =
+    DiskImage a []
 
 
 decodeDiskImage : Config msg a -> String -> Result Json.Decode.Error (DiskImage msg a)
