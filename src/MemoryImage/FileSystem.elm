@@ -151,7 +151,7 @@ update config initFn updateFn msg (Image a) =
                                 ( image_, cmd ) =
                                     (case c of
                                         Just d ->
-                                            ( MemoryImage.diskImageToMemoryImage updateFn d
+                                            ( MemoryImage.fromDiskImage updateFn d
                                             , Cmd.none
                                             )
 
