@@ -36,4 +36,4 @@ toAny (Id a) =
 
 codec : Codec.Codec (Id a)
 codec =
-    Codec.string |> Codec.map fromString toString
+    Codec.string |> Codec.map toString fromString

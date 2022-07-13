@@ -43,4 +43,4 @@ toAny (Reference a) =
 
 codec : Codec.Codec (Reference a)
 codec =
-    Codec.string |> Codec.map fromString toString
+    Codec.string |> Codec.map toString fromString
