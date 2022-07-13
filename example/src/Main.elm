@@ -128,9 +128,9 @@ initImage () =
 
 imageCodec : Codec.Codec Image
 imageCodec =
-    Codec.object Image
+    Codec.record Image
         |> Codec.field "counter" .counter Codec.int
-        |> Codec.buildObject
+        |> Codec.buildRecord
 
 
 imageConfig : MemoryImage.Config ImageMsg Image
