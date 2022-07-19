@@ -345,7 +345,7 @@ doQueue config handle image_ queue a =
                                 |> String.join ""
                     in
                     ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
-                    , FileSystem.Handle.write data c
+                    , FileSystem.Handle.write c data
                         |> Task.map (\_ -> ())
                         |> Task.attempt QueueDone
                     )
@@ -358,7 +358,7 @@ doQueue config handle image_ queue a =
                     in
                     ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
                     , FileSystem.Handle.truncate c
-                        |> Task.andThen (FileSystem.Handle.write data)
+                        |> Task.andThen (\_ -> FileSystem.Handle.write c data)
                         |> Task.map (\_ -> ())
                         |> Task.attempt QueueDone
                     )
