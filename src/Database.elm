@@ -65,8 +65,7 @@ idsByIndex config (Database index _) a =
 
 
 type alias Config comparable index a =
-    { toId : a -> Id.Id a
-    , toIndexes : a -> List index
+    { toIndexes : a -> List index
     , indexToComparable : index -> comparable
     }
 
@@ -75,13 +74,8 @@ type alias Config comparable index a =
 --
 
 
-insert : Config comparable index a -> a -> Database index a -> Database index a
-insert config new (Database index db) =
-    let
-        id : Id.Id a
-        id =
-            config.toId new
-    in
+insert : Config comparable index a -> Id.Id a -> a -> Database index a -> Database index a
+insert config id new (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
@@ -135,9 +129,9 @@ insert config new (Database index db) =
                 )
 
 
-insertMany : Config comparable index a -> List a -> Database index a -> Database index a
+insertMany : Config comparable index a -> List ( Id.Id a, a ) -> Database index a -> Database index a
 insertMany config docs a =
-    docs |> List.foldl (insert config) a
+    docs |> List.foldl (\( k, v ) -> insert config k v) a
 
 
 
@@ -182,7 +176,7 @@ removeMany config ids a =
 
 codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database index a)
 codec config a =
-    Codec.list a
+    Codec.list (Codec.tuple Id.codec a)
         |> Codec.map
-            (\(Database _ db) -> db |> Dict.Any.values)
+            (\(Database _ db) -> db |> Dict.Any.toList)
             (\v -> empty |> insertMany config v)
