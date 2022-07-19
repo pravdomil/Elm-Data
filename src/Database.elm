@@ -40,12 +40,12 @@ documents (Database _ db) =
 --
 
 
-documentById : Database index a -> Id.Id a -> Maybe a
+documentById : Database index a -> Id.Id a -> Maybe ( Id.Id a, a )
 documentById db a =
-    db |> documents |> Dict.Any.get Id.toString a
+    db |> documents |> Dict.Any.get Id.toString a |> Maybe.map (Tuple.pair a)
 
 
-documentsByIndex : Config comparable index a -> Database index a -> index -> List a
+documentsByIndex : Config comparable index a -> Database index a -> index -> List ( Id.Id a, a )
 documentsByIndex config db a =
     idsByIndex config db a |> List.filterMap (documentById db)
 
@@ -74,8 +74,8 @@ type alias Config comparable index a =
 --
 
 
-insert : Config comparable index a -> Id.Id a -> a -> Database index a -> Database index a
-insert config id new (Database index db) =
+insert : Config comparable index a -> ( Id.Id a, a ) -> Database index a -> Database index a
+insert config ( id, new ) (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
@@ -131,7 +131,7 @@ insert config id new (Database index db) =
 
 insertMany : Config comparable index a -> List ( Id.Id a, a ) -> Database index a -> Database index a
 insertMany config docs a =
-    docs |> List.foldl (\( k, v ) -> insert config k v) a
+    docs |> List.foldl (insert config) a
 
 
 
