@@ -13,7 +13,7 @@ cd "${0%/*}/.."
 npm i
 
 # Compile application.
-elm make src/Main.elm --output "dist/elm.js"
+elm make src-example/Main.elm --output "dist/elm.js"
 elm-ffi --run "dist/elm.js"
 
 # Run application.
