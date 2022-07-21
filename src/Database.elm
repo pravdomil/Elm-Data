@@ -40,18 +40,18 @@ documents (Database _ db) =
 --
 
 
-documentById : Database index a -> Id.Id a -> Maybe ( Id.Id a, a )
-documentById db a =
-    db |> documents |> Dict.Any.get Id.toString a |> Maybe.map (Tuple.pair a)
+documentById : Id.Id a -> Database index a -> Maybe ( Id.Id a, a )
+documentById id a =
+    a |> documents |> Dict.Any.get Id.toString id |> Maybe.map (Tuple.pair id)
 
 
-documentsByIndex : Config comparable index a -> Database index a -> index -> List ( Id.Id a, a )
-documentsByIndex config db a =
-    idsByIndex config db a |> List.filterMap (documentById db)
+documentsByIndex : Config comparable index a -> index -> Database index a -> List ( Id.Id a, a )
+documentsByIndex config index a =
+    idsByIndex config index a |> List.filterMap (\x -> documentById x a)
 
 
-idsByIndex : Config comparable index a -> Database index a -> index -> List (Id.Id a)
-idsByIndex config (Database index _) a =
+idsByIndex : Config comparable index a -> index -> Database index a -> List (Id.Id a)
+idsByIndex config a (Database index _) =
     let
         index__ : comparable
         index__ =
