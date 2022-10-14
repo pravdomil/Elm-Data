@@ -9,7 +9,7 @@ set -u
 # Be in project root.
 cd "${0%/*}/.."
 
-# Have dependencies from npm ready.
+# Install dependencies from npm.
 npm i
 
 # Compile application.
