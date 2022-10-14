@@ -64,10 +64,41 @@ type alias Model msg a =
     }
 
 
+
+--
+
+
 type ImageState msg a
     = NoImage
     | LoadingImage (Queue msg a) (List msg)
     | ReadyImage (Queue msg a) Handle (MemoryImage.FileImage.MemoryImage msg a)
+
+
+
+--
+
+
+type Queue msg a
+    = Empty
+    | LogMessage msg (List msg)
+    | SaveImage
+
+
+queueAddLogMessage : msg -> Queue msg a -> Queue msg a
+queueAddLogMessage data a =
+    case a of
+        Empty ->
+            LogMessage data []
+
+        LogMessage first rest ->
+            LogMessage data (first :: rest)
+
+        SaveImage ->
+            SaveImage
+
+
+
+--
 
 
 type Handle
@@ -83,6 +114,10 @@ handleToHandle a =
 
         BusyHandle b ->
             b
+
+
+
+--
 
 
 type Status
@@ -404,29 +439,6 @@ getHandle path =
                 FileSystem.Handle.read v
                     |> Task.map (\v2 -> ( v, v2 ))
             )
-
-
-
---
-
-
-type Queue msg a
-    = Empty
-    | LogMessage msg (List msg)
-    | SaveImage
-
-
-queueAddLogMessage : msg -> Queue msg a -> Queue msg a
-queueAddLogMessage data a =
-    case a of
-        Empty ->
-            LogMessage data []
-
-        LogMessage first rest ->
-            LogMessage data (first :: rest)
-
-        SaveImage ->
-            SaveImage
 
 
 
