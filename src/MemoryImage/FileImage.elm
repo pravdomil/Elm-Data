@@ -2,6 +2,7 @@ module MemoryImage.FileImage exposing (Config, FileImage, create, fromString, im
 
 import Json.Decode
 import Json.Encode
+import Result.Extra
 
 
 {-| Memory image file format.
@@ -29,7 +30,7 @@ fromString config a =
                 FileImage
                 (rest
                     |> List.map (Json.Decode.decodeString config.msgDecoder)
-                    |> resultSequence
+                    |> Result.Extra.sequence
                 )
                 (first
                     |> Json.Decode.decodeString config.decoder
@@ -62,12 +63,3 @@ type alias Config msg a =
     , msgEncoder : msg -> Json.Decode.Value
     , msgDecoder : Json.Decode.Decoder msg
     }
-
-
-
---
-
-
-resultSequence : List (Result x a) -> Result x (List a)
-resultSequence a =
-    List.foldr (Result.map2 (::)) (Ok []) a
