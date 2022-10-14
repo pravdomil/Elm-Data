@@ -19,7 +19,7 @@ import FileSystem
 import FileSystem.Handle
 import JavaScript
 import Json.Encode
-import MemoryImage
+import MemoryImage.FileImage
 import Process
 import Process.Extra
 import Task
@@ -40,7 +40,7 @@ image (Image a) =
             Nothing
 
         ReadyImage _ _ b ->
-            Just (MemoryImage.image b)
+            Just (MemoryImage.FileImage.image b)
 
 
 sendMessage : msg -> Cmd (Msg msg)
@@ -67,7 +67,7 @@ type alias Model msg a =
 type ImageState msg a
     = NoImage
     | LoadingImage (Queue msg a) (List msg)
-    | ReadyImage (Queue msg a) Handle (MemoryImage.MemoryImage msg a)
+    | ReadyImage (Queue msg a) Handle (MemoryImage.FileImage.MemoryImage msg a)
 
 
 type Handle
@@ -94,7 +94,7 @@ type Status
 --
 
 
-init : MemoryImage.Config msg a -> FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
+init : MemoryImage.FileImage.Config msg a -> FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
 init config path =
     let
         ( image_, cmd ) =
@@ -122,7 +122,7 @@ type Msg msg
     | NoOperation
 
 
-update : MemoryImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+update : MemoryImage.FileImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
 update config initFn updateFn msg (Image a) =
     (case msg of
         GotHandle b ->
@@ -134,14 +134,14 @@ update config initFn updateFn msg (Image a) =
 
                 LoadingImage queue messages ->
                     let
-                        toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.DiskImage msg a) )
+                        toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.FileImage.DiskImage msg a) )
                         toDiskImage ( handle, c ) =
                             case c of
                                 "" ->
                                     Ok ( handle, Nothing )
 
                                 _ ->
-                                    MemoryImage.decodeDiskImage config c
+                                    MemoryImage.FileImage.decodeDiskImage config c
                                         |> Result.mapError JavaScript.DecodeError
                                         |> Result.map (\v -> ( handle, Just v ))
                     in
@@ -151,14 +151,14 @@ update config initFn updateFn msg (Image a) =
                                 ( image_, cmd ) =
                                     (case c of
                                         Just d ->
-                                            ( MemoryImage.fromDiskImage updateFn d
+                                            ( MemoryImage.FileImage.fromDiskImage updateFn d
                                             , Cmd.none
                                             )
 
                                         Nothing ->
-                                            MemoryImage.init initFn
+                                            MemoryImage.FileImage.init initFn
                                     )
-                                        |> updateMultiple (MemoryImage.update updateFn) (List.reverse messages)
+                                        |> updateMultiple (MemoryImage.FileImage.update updateFn) (List.reverse messages)
 
                                 nextQueue : Queue msg a
                                 nextQueue =
@@ -200,7 +200,7 @@ update config initFn updateFn msg (Image a) =
                 ReadyImage queue handle image_ ->
                     let
                         ( nextImage, cmd ) =
-                            MemoryImage.update updateFn b image_
+                            MemoryImage.FileImage.update updateFn b image_
                     in
                     ( Image { a | image = ReadyImage (queueAddLogMessage b queue) handle nextImage }
                     , cmd |> Cmd.map GotMessage
@@ -290,7 +290,7 @@ update config initFn updateFn msg (Image a) =
            )
 
 
-lifecycle : MemoryImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+lifecycle : MemoryImage.FileImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
 lifecycle config (Image a) =
     case a.status of
         Running ->
@@ -325,7 +325,7 @@ lifecycle config (Image a) =
                     doQueue config handle image_ queue a
 
 
-doQueue : MemoryImage.Config msg a -> Handle -> MemoryImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
+doQueue : MemoryImage.FileImage.Config msg a -> Handle -> MemoryImage.FileImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
 doQueue config handle image_ queue a =
     case handle of
         ReadyHandle c ->
@@ -354,7 +354,7 @@ doQueue config handle image_ queue a =
                     let
                         data : String
                         data =
-                            MemoryImage.toDiskImage image_ |> MemoryImage.encodeDiskImage config
+                            MemoryImage.FileImage.toDiskImage image_ |> MemoryImage.FileImage.encodeDiskImage config
                     in
                     ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
                     , FileSystem.Handle.truncate c
