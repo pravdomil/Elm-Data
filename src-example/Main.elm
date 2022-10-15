@@ -42,7 +42,7 @@ config =
         update
         subscriptions
         (\_ -> FileSystem.Path "image.jsonl")
-        (.status >> statusToDailySave)
+        (.state >> stateToDailySave)
 
 
 config2 : MemoryImage.FileImage.Config Msg Model
@@ -60,7 +60,7 @@ config2 =
 
 type alias Model =
     { messages : List String
-    , status : Status
+    , state : State
     }
 
 
@@ -69,7 +69,7 @@ init a =
     ( case a of
         Just b ->
             { b
-                | status = Running
+                | state = Running
             }
 
         Nothing ->
@@ -84,13 +84,13 @@ init a =
 --
 
 
-type Status
+type State
     = Running
     | Exiting
 
 
-statusToDailySave : Status -> MemoryImage.Worker.DailySave
-statusToDailySave a =
+stateToDailySave : State -> MemoryImage.Worker.DailySave
+stateToDailySave a =
     case a of
         Running ->
             MemoryImage.Worker.DailySave
@@ -126,7 +126,7 @@ update msg model =
             )
 
         ExitSignalReceived ->
-            ( { model | status = Exiting }
+            ( { model | state = Exiting }
             , Cmd.none
             )
 
@@ -137,7 +137,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.status of
+    case model.state of
         Running ->
             Time.every 1000 LogTime
 
@@ -151,14 +151,14 @@ subscriptions model =
 
 modelCodec : Codec.Codec Model
 modelCodec =
-    Codec.record (\x1 x2 -> { messages = x1, status = x2 })
+    Codec.record (\x1 x2 -> { messages = x1, state = x2 })
         |> Codec.field .messages (Codec.list Codec.string)
-        |> Codec.field .status statusCodec
+        |> Codec.field .state stateCodec
         |> Codec.buildRecord
 
 
-statusCodec : Codec.Codec Status
-statusCodec =
+stateCodec : Codec.Codec State
+stateCodec =
     Codec.lazy
         (\() ->
             Codec.custom
