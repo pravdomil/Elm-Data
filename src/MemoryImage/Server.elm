@@ -5,7 +5,7 @@ import Http.Server
 import Http.Server.Internals
 import Json.Decode
 import MemoryImage
-import MemoryImage.FileSystem
+import MemoryImage.Worker
 import Process.Extra
 
 
@@ -43,7 +43,7 @@ type alias Config msg a =
 
 type alias Model msg a =
     { server : Http.Server.Server
-    , image : MemoryImage.FileSystem.Image msg a
+    , image : MemoryImage.Worker.Image msg a
     }
 
 
@@ -54,7 +54,7 @@ init config flags =
             Http.Server.init (config.serverOptions flags)
 
         ( image, cmd2 ) =
-            MemoryImage.FileSystem.init config.image config.imagePath
+            MemoryImage.Worker.init config.image config.imagePath
     in
     ( Model server image
     , Cmd.batch
@@ -71,7 +71,7 @@ init config flags =
 
 type Msg msg
     = GotServerMsg Http.Server.Msg
-    | GotMemoryImageMsg (MemoryImage.FileSystem.Msg msg)
+    | GotMemoryImageMsg (MemoryImage.Worker.Msg msg)
     | ExitSignal
     | NoOperation
 
@@ -85,7 +85,7 @@ update config msg model =
                     case c of
                         Http.Server.GotRequest d ->
                             ( model
-                            , MemoryImage.FileSystem.sendMessage (config.gotRequest d)
+                            , MemoryImage.Worker.sendMessage (config.gotRequest d)
                                 |> Cmd.map GotMemoryImageMsg
                             )
 
@@ -94,7 +94,7 @@ update config msg model =
                         |> Tuple.mapBoth (\v -> { model | server = v }) (Cmd.map GotServerMsg)
 
         GotMemoryImageMsg b ->
-            MemoryImage.FileSystem.update config.image config.init config.update b model.image
+            MemoryImage.Worker.update config.image config.init config.update b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
 
         ExitSignal ->
@@ -102,7 +102,7 @@ update config msg model =
             , Cmd.batch
                 [ Http.Server.close
                     |> Cmd.map GotServerMsg
-                , MemoryImage.FileSystem.close
+                , MemoryImage.Worker.close
                     |> Cmd.map GotMemoryImageMsg
                 ]
             )
@@ -121,5 +121,5 @@ subscriptions : Config msg a -> Model msg a -> Sub (Msg msg)
 subscriptions _ model =
     Sub.batch
         [ Http.Server.subscriptions model.server |> Sub.map GotServerMsg
-        , MemoryImage.FileSystem.subscriptions model.image |> Sub.map GotMemoryImageMsg
+        , MemoryImage.Worker.subscriptions model.image |> Sub.map GotMemoryImageMsg
         ]

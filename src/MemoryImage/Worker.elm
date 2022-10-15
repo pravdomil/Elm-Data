@@ -1,4 +1,4 @@
-module MemoryImage.FileSystem exposing
+module MemoryImage.Worker exposing
     ( Image, image
     , Config, DailySave(..), worker
     , Msg, init, update, subscriptions, sendMessage
