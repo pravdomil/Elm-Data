@@ -54,15 +54,20 @@ type Status
 
 
 type Msg
-    = MessageReceived (MemoryImage.FileSystem.Msg ImageMsg)
+    = NothingHappened
+    | MessageReceived (MemoryImage.FileSystem.Msg ImageMsg)
     | ExitSignalReceived
     | SecondElapsed
-    | NothingHappened
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
+        NothingHappened ->
+            ( model
+            , Cmd.none
+            )
+
         MessageReceived b ->
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map MessageReceived)
@@ -75,11 +80,6 @@ update msg model =
         SecondElapsed ->
             ( model
             , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map MessageReceived
-            )
-
-        NothingHappened ->
-            ( model
-            , Cmd.none
             )
     )
         |> (\( v, cmd ) ->
