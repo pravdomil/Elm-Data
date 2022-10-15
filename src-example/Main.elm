@@ -67,14 +67,20 @@ init flags a =
     let
         model : Model
         model =
-            case a of
+            (case a of
                 Just b ->
-                    b
+                    { b | state = Running }
 
                 Nothing ->
                     Model
                         [ "Welcome." ]
                         Running
+            )
+                |> (\x ->
+                        { x
+                            | messages = ("Running with pid " ++ String.fromInt pid ++ ".") :: x.messages
+                        }
+                   )
 
         pid : Int
         pid =
@@ -83,12 +89,6 @@ init flags a =
                 |> Result.withDefault 0
     in
     ( model
-        |> (\x ->
-                { x
-                    | messages = ("Running with pid " ++ String.fromInt pid ++ ".") :: x.messages
-                    , state = Running
-                }
-           )
     , Process.Extra.onExitSignal ExitSignalReceived
     )
 
