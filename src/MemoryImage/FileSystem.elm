@@ -1,28 +1,35 @@
 module MemoryImage.FileSystem exposing
     ( Image, image
-    , Msg, init, update, subscriptions
-    , close, sendMessage
+    , Config
+    , Msg, init, update, sendMessage, turnOffDailySave
+    , subscriptions
     )
 
 {-|
 
 @docs Image, image
 
-@docs Msg, init, update, subscriptions
+@docs Config
 
-@docs close, sendMessage
+@docs Msg, init, update, sendMessage, turnOffDailySave
+
+@docs subscriptions
 
 -}
 
+import Codec
 import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
 import Json.Encode
+import LogMessage
 import MemoryImage.FileImage
+import Platform.Extra
 import Process
 import Process.Extra
 import Task
+import Task.Extra
 import Time
 
 
@@ -32,25 +39,17 @@ type Image msg a
 
 image : Image msg a -> Maybe a
 image (Image a) =
-    case a.image of
-        NoImage ->
-            Nothing
-
-        LoadingImage _ _ ->
-            Nothing
-
-        ReadyImage _ _ b ->
-            Just (MemoryImage.FileImage.image b)
+    a.image |> Result.map .image |> Result.toMaybe
 
 
-sendMessage : msg -> Cmd (Msg msg)
-sendMessage a =
-    sendMessageToSelf (GotMessage a)
+
+--
 
 
-close : Cmd (Msg msg)
-close =
-    sendMessageToSelf PleaseClose
+type alias Config msg a =
+    { init : () -> ( a, Cmd msg )
+    , update : msg -> a -> ( a, Cmd msg )
+    }
 
 
 
@@ -59,8 +58,35 @@ close =
 
 type alias Model msg a =
     { path : FileSystem.Path
-    , image : ImageState msg a
-    , status : Status
+    , image : Result Error (ReadyImage a)
+    , saveQueue : List msg
+    , saveMode : SaveMode
+    , dailySave : DailySave
+    }
+
+
+init : FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
+init path =
+    ( Image
+        (Model
+            path
+            (Err NoImage)
+            []
+            SaveMessages
+            DailySave
+        )
+    , Process.Extra.onBeforeExit BeforeExit
+    )
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load >> Tuple.mapFirst Image)
+
+
+
+--
+
+
+type alias ReadyImage a =
+    { image : a
+    , handle : Result FileSystem.Handle.Handle FileSystem.Handle.Handle
     }
 
 
@@ -68,79 +94,28 @@ type alias Model msg a =
 --
 
 
-type ImageState msg a
+type Error
     = NoImage
-    | LoadingImage (Queue msg a) (List msg)
-    | ReadyImage (Queue msg a) Handle (MemoryImage.FileImage.MemoryImage msg a)
+    | Loading
+    | JavaScriptError JavaScript.Error
 
 
 
 --
 
 
-type Queue msg a
-    = Empty
-    | LogMessage msg (List msg)
-    | SaveImage
-
-
-queueAddLogMessage : msg -> Queue msg a -> Queue msg a
-queueAddLogMessage data a =
-    case a of
-        Empty ->
-            LogMessage data []
-
-        LogMessage first rest ->
-            LogMessage data (first :: rest)
-
-        SaveImage ->
-            SaveImage
+type SaveMode
+    = SaveMessages
+    | SaveSnapshot
 
 
 
 --
 
 
-type Handle
-    = ReadyHandle FileSystem.Handle.Handle
-    | BusyHandle FileSystem.Handle.Handle
-
-
-handleToHandle : Handle -> FileSystem.Handle.Handle
-handleToHandle a =
-    case a of
-        ReadyHandle b ->
-            b
-
-        BusyHandle b ->
-            b
-
-
-
---
-
-
-type Status
-    = Running
-    | Exiting
-
-
-
---
-
-
-init : MemoryImage.FileImage.Config msg a -> FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
-init config path =
-    let
-        ( image_, cmd ) =
-            lifecycle config (Image (Model path NoImage Running))
-    in
-    ( image_
-    , Cmd.batch
-        [ cmd
-        , Process.Extra.onBeforeExit SaveImage_
-        ]
-    )
+type DailySave
+    = DailySave
+    | NoDailySave
 
 
 
@@ -148,260 +123,329 @@ init config path =
 
 
 type Msg msg
-    = GotHandle (Result JavaScript.Error ( FileSystem.Handle.Handle, String ))
-    | GotMessage msg
-    | QueueDone (Result JavaScript.Error ())
-    | FreeHandle
-    | SaveImage_
-    | PleaseClose
-    | NoOperation
+    = NothingHappened
+    | ImageLoaded (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
+    | MessageReceived msg
+    | MessagesSaved (Result JavaScript.Error ())
+    | SnapshotSaved (Result JavaScript.Error ())
+    | RecoverFromSaveError
+    | DailySaveTurnOffRequested
+    | DayElapsed
+    | BeforeExit
 
 
-update : MemoryImage.FileImage.Config msg a -> (() -> ( a, Cmd msg )) -> (msg -> a -> ( a, Cmd msg )) -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-update config initFn updateFn msg (Image a) =
+update : Config msg a -> MemoryImage.FileImage.Config msg a -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+update config config2 msg (Image model) =
     (case msg of
-        GotHandle b ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
+        NothingHappened ->
+            Platform.Extra.noOperation model
 
-                LoadingImage queue messages ->
+        ImageLoaded b ->
+            imageLoaded config config2 b model
+
+        MessageReceived b ->
+            messageReceived config config2 b model
+
+        MessagesSaved b ->
+            queueSaved b model
+
+        SnapshotSaved b ->
+            queueSaved b model
+
+        RecoverFromSaveError ->
+            freeHandle model
+
+        DailySaveTurnOffRequested ->
+            setDailySave NoDailySave model
+
+        DayElapsed ->
+            setSaveMode SaveSnapshot model
+
+        BeforeExit ->
+            setSaveMode SaveSnapshot model
+    )
+        |> Platform.Extra.andThen (save config config2)
+        |> Tuple.mapFirst Image
+
+
+sendMessage : Config msg a -> MemoryImage.FileImage.Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+sendMessage config config2 a model =
+    update config config2 (MessageReceived a) model
+
+
+turnOffDailySave : Config msg a -> MemoryImage.FileImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+turnOffDailySave config config2 model =
+    update config config2 DailySaveTurnOffRequested model
+
+
+
+--
+
+
+load : Model msg a -> ( Model msg a, Cmd (Msg msg) )
+load model =
+    case model.image of
+        Err NoImage ->
+            let
+                mode : FileSystem.Handle.Mode
+                mode =
+                    FileSystem.Handle.Mode
+                        FileSystem.Handle.Read
+                        FileSystem.Handle.Append
+                        FileSystem.Handle.CreateIfNotExists
+                        FileSystem.Handle.DoNotTruncate
+            in
+            ( { model
+                | image = Err Loading
+              }
+            , FileSystem.Handle.open mode model.path
+                |> Task.andThen
+                    (\x ->
+                        FileSystem.Handle.read x
+                            |> Task.map (\x2 -> ( x2, x ))
+                    )
+                |> Task.attempt ImageLoaded
+            )
+
+        _ ->
+            Platform.Extra.noOperation model
+
+
+imageLoaded : Config msg a -> MemoryImage.FileImage.Config msg a -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+imageLoaded config config2 result model =
+    let
+        toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle )
+        toImage ( content, handle ) =
+            (case content of
+                "" ->
+                    Ok (config.init ())
+
+                _ ->
+                    MemoryImage.FileImage.fromString config2 content
+                        |> Result.mapError JavaScript.DecodeError
+                        |> Result.map
+                            (\x ->
+                                ( MemoryImage.FileImage.image config.update x
+                                , Cmd.none
+                                )
+                            )
+            )
+                |> Result.map (\x -> ( x, handle ))
+    in
+    case result |> Result.andThen toImage of
+        Ok ( a, handle ) ->
+            let
+                ( image_, cmd ) =
+                    replayMessages config (List.reverse model.saveQueue) a
+            in
+            ( { model
+                | image = Ok { image = image_, handle = Ok handle }
+              }
+            , cmd |> Cmd.map MessageReceived
+            )
+
+        Err b ->
+            let
+                message : LogMessage.LogMessage
+                message =
+                    LogMessage.LogMessage
+                        LogMessage.Error
+                        "Cannot load image."
+                        (Just (LogMessage.JavaScriptError b))
+            in
+            ( { model
+                | image = Err (JavaScriptError b)
+              }
+            , logMessage message
+                |> Task.Extra.andAlwaysThen (\_ -> Process.Extra.exit 1)
+                |> Task.attempt (\_ -> NothingHappened)
+            )
+
+
+
+--
+
+
+messageReceived : Config msg a -> MemoryImage.FileImage.Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+messageReceived config _ msg model =
+    (case model.image of
+        Ok a ->
+            let
+                ( nextImage, cmd ) =
+                    config.update msg a.image
+            in
+            ( { model
+                | image = Ok { a | image = nextImage }
+              }
+            , cmd |> Cmd.map MessageReceived
+            )
+
+        Err _ ->
+            Platform.Extra.noOperation model
+    )
+        |> Platform.Extra.andThen
+            (\x ->
+                ( { x | saveQueue = msg :: x.saveQueue }
+                , Cmd.none
+                )
+            )
+
+
+
+--
+
+
+save : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+save config config2 model =
+    case model.saveMode of
+        SaveMessages ->
+            saveMessages config config2 model
+
+        SaveSnapshot ->
+            saveSnapshot config config2 model
+
+
+saveMessages : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveMessages _ config2 model =
+    case model.image of
+        Ok a ->
+            case a.handle of
+                Ok handle ->
                     let
-                        toDiskImage : ( FileSystem.Handle.Handle, String ) -> Result JavaScript.Error ( FileSystem.Handle.Handle, Maybe (MemoryImage.FileImage.DiskImage msg a) )
-                        toDiskImage ( handle, c ) =
-                            case c of
-                                "" ->
-                                    Ok ( handle, Nothing )
+                        data : Maybe String
+                        data =
+                            case model.saveQueue of
+                                [] ->
+                                    Nothing
 
                                 _ ->
-                                    MemoryImage.FileImage.decodeDiskImage config c
-                                        |> Result.mapError JavaScript.DecodeError
-                                        |> Result.map (\v -> ( handle, Just v ))
+                                    model.saveQueue
+                                        |> List.reverse
+                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config2.msgEncoder x))
+                                        |> String.join ""
+                                        |> Just
                     in
-                    case b |> Result.andThen toDiskImage of
-                        Ok ( handle, c ) ->
-                            let
-                                ( image_, cmd ) =
-                                    (case c of
-                                        Just d ->
-                                            ( MemoryImage.FileImage.fromDiskImage updateFn d
-                                            , Cmd.none
-                                            )
-
-                                        Nothing ->
-                                            MemoryImage.FileImage.init initFn
-                                    )
-                                        |> updateMultiple (MemoryImage.FileImage.update updateFn) (List.reverse messages)
-
-                                nextQueue : Queue msg a
-                                nextQueue =
-                                    case c of
-                                        Just _ ->
-                                            queue
-
-                                        Nothing ->
-                                            SaveImage
-                            in
-                            ( Image { a | image = ReadyImage nextQueue (ReadyHandle handle) image_ }
-                            , cmd |> Cmd.map GotMessage
+                    case data of
+                        Just b ->
+                            ( { model
+                                | image = Ok { a | handle = Err handle }
+                                , saveQueue = []
+                                , saveMode = SaveMessages
+                              }
+                            , FileSystem.Handle.write b handle
+                                |> Task.attempt MessagesSaved
                             )
 
-                        Err c ->
-                            ( Image a
-                            , Console.logError ("Cannot load memory image. " ++ Json.Encode.encode 0 (Json.Encode.string (JavaScript.errorToString c)))
-                                |> Task.andThen (\_ -> Process.Extra.exit 1)
-                                |> Task.attempt (\_ -> NoOperation)
-                            )
+                        Nothing ->
+                            Platform.Extra.noOperation model
 
-                ReadyImage _ _ _ ->
-                    ( Image a
-                    , Cmd.none
-                    )
+                Err _ ->
+                    Platform.Extra.noOperation model
 
-        GotMessage b ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
+        _ ->
+            Platform.Extra.noOperation model
 
-                LoadingImage c d ->
-                    ( Image { a | image = LoadingImage (queueAddLogMessage b c) (b :: d) }
-                    , Cmd.none
-                    )
 
-                ReadyImage queue handle image_ ->
+saveSnapshot : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveSnapshot _ config2 model =
+    case model.image of
+        Ok a ->
+            case a.handle of
+                Ok handle ->
                     let
-                        ( nextImage, cmd ) =
-                            MemoryImage.FileImage.update updateFn b image_
+                        data : String
+                        data =
+                            MemoryImage.FileImage.create [] a.image
+                                |> MemoryImage.FileImage.toString config2
                     in
-                    ( Image { a | image = ReadyImage (queueAddLogMessage b queue) handle nextImage }
-                    , cmd |> Cmd.map GotMessage
+                    ( { model
+                        | image = Ok { a | handle = Err handle }
+                        , saveQueue = []
+                        , saveMode = SaveMessages
+                      }
+                    , FileSystem.Handle.truncate handle
+                        |> Task.andThen (\_ -> FileSystem.Handle.write data handle)
+                        |> Task.attempt SnapshotSaved
                     )
 
-        QueueDone c ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
+                Err _ ->
+                    Platform.Extra.noOperation model
 
-                LoadingImage _ _ ->
-                    ( Image a
-                    , Cmd.none
-                    )
+        _ ->
+            Platform.Extra.noOperation model
 
-                ReadyImage queue handle image_ ->
-                    case c of
-                        Ok _ ->
-                            ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) image_ }
-                            , Cmd.none
-                            )
 
-                        Err d ->
-                            ( Image { a | image = ReadyImage SaveImage handle image_ }
-                            , Cmd.batch
-                                [ Console.logError ("Cannot save memory image. " ++ Json.Encode.encode 0 (Json.Encode.string (JavaScript.errorToString d)))
-                                    |> Task.attempt (\_ -> NoOperation)
-                                , Process.sleep 1000
-                                    |> Task.perform (\() -> FreeHandle)
-                                ]
-                            )
+queueSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+queueSaved result model =
+    case result of
+        Ok () ->
+            freeHandle model
 
-        FreeHandle ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
+        Err b ->
+            let
+                message : LogMessage.LogMessage
+                message =
+                    LogMessage.LogMessage
+                        LogMessage.Error
+                        "Cannot save image."
+                        (Just (LogMessage.JavaScriptError b))
+            in
+            ( model
+            , Process.sleep 1000
+                |> Task.perform (\() -> RecoverFromSaveError)
+            )
+                |> Platform.Extra.andThen (setSaveMode SaveSnapshot)
+                |> Platform.Extra.andThen (log message)
 
-                LoadingImage _ _ ->
-                    ( Image a
-                    , Cmd.none
-                    )
 
-                ReadyImage queue handle image_ ->
-                    ( Image { a | image = ReadyImage queue (ReadyHandle (handleToHandle handle)) image_ }
-                    , Cmd.none
-                    )
+freeHandle : Model msg a -> ( Model msg a, Cmd (Msg msg) )
+freeHandle model =
+    case model.image of
+        Ok a ->
+            let
+                handle : FileSystem.Handle.Handle
+                handle =
+                    case a.handle of
+                        Ok b ->
+                            b
 
-        SaveImage_ ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
-
-                LoadingImage _ b ->
-                    ( Image { a | image = LoadingImage SaveImage b }
-                    , Cmd.none
-                    )
-
-                ReadyImage _ handle image_ ->
-                    ( Image { a | image = ReadyImage SaveImage handle image_ }
-                    , Cmd.none
-                    )
-
-        PleaseClose ->
-            ( Image { a | status = Exiting }
+                        Err b ->
+                            b
+            in
+            ( { model
+                | image = Ok { a | handle = Ok handle }
+              }
             , Cmd.none
             )
 
-        NoOperation ->
-            ( Image a
-            , Cmd.none
-            )
+        Err _ ->
+            Platform.Extra.noOperation model
+
+
+
+--
+
+
+setSaveMode : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+setSaveMode a model =
+    ( { model | saveMode = a }
+    , Cmd.none
     )
-        |> (\( v, cmd ) ->
-                let
-                    ( v2, cmd2 ) =
-                        lifecycle config v
-                in
-                ( v2
-                , Cmd.batch [ cmd, cmd2 ]
-                )
-           )
 
 
-lifecycle : MemoryImage.FileImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-lifecycle config (Image a) =
-    case a.status of
-        Running ->
-            case a.image of
-                NoImage ->
-                    ( Image { a | image = LoadingImage Empty [] }
-                    , getHandle a.path
-                        |> Task.attempt GotHandle
-                    )
-
-                LoadingImage _ _ ->
-                    ( Image a
-                    , Cmd.none
-                    )
-
-                ReadyImage queue handle image_ ->
-                    doQueue config handle image_ queue a
-
-        Exiting ->
-            case a.image of
-                NoImage ->
-                    ( Image a
-                    , Cmd.none
-                    )
-
-                LoadingImage _ _ ->
-                    ( Image a
-                    , Cmd.none
-                    )
-
-                ReadyImage queue handle image_ ->
-                    doQueue config handle image_ queue a
+setDailySave : DailySave -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+setDailySave a model =
+    ( { model | dailySave = a }
+    , Cmd.none
+    )
 
 
-doQueue : MemoryImage.FileImage.Config msg a -> Handle -> MemoryImage.FileImage.MemoryImage msg a -> Queue msg a -> Model msg a -> ( Image msg a, Cmd (Msg msg) )
-doQueue config handle image_ queue a =
-    case handle of
-        ReadyHandle c ->
-            case queue of
-                Empty ->
-                    ( Image a
-                    , Cmd.none
-                    )
-
-                LogMessage first rest ->
-                    let
-                        data : String
-                        data =
-                            (first :: rest)
-                                |> List.reverse
-                                |> List.map (\v -> v |> config.msgEncoder |> Json.Encode.encode 0 |> (++) "\n")
-                                |> String.join ""
-                    in
-                    ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
-                    , FileSystem.Handle.write data c
-                        |> Task.map (\_ -> ())
-                        |> Task.attempt QueueDone
-                    )
-
-                SaveImage ->
-                    let
-                        data : String
-                        data =
-                            MemoryImage.FileImage.toDiskImage image_ |> MemoryImage.FileImage.encodeDiskImage config
-                    in
-                    ( Image { a | image = ReadyImage Empty (BusyHandle c) image_ }
-                    , FileSystem.Handle.truncate c
-                        |> Task.andThen (\_ -> FileSystem.Handle.write data c)
-                        |> Task.map (\_ -> ())
-                        |> Task.attempt QueueDone
-                    )
-
-        BusyHandle _ ->
-            ( Image a
-            , Cmd.none
-            )
+log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+log a model =
+    ( model
+    , logMessage a
+        |> Task.attempt (\_ -> NothingHappened)
+    )
 
 
 
@@ -410,11 +454,11 @@ doQueue config handle image_ queue a =
 
 subscriptions : Image msg a -> Sub (Msg msg)
 subscriptions (Image a) =
-    case a.status of
-        Running ->
-            Time.every (1000 * 60 * 60 * 24) (\_ -> SaveImage_)
+    case a.dailySave of
+        DailySave ->
+            Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-        Exiting ->
+        NoDailySave ->
             Sub.none
 
 
@@ -422,43 +466,37 @@ subscriptions (Image a) =
 --
 
 
-getHandle : FileSystem.Path -> Task.Task JavaScript.Error ( FileSystem.Handle.Handle, String )
-getHandle path =
+replayMessages : Config msg a -> List msg -> ( a, Cmd msg ) -> ( a, Cmd msg )
+replayMessages config messages ( a, cmd ) =
     let
-        mode : FileSystem.Handle.Mode
-        mode =
-            FileSystem.Handle.Mode
-                FileSystem.Handle.Read
-                FileSystem.Handle.Append
-                FileSystem.Handle.CreateIfNotExists
-                FileSystem.Handle.DoNotTruncate
+        fn : msg -> ( a, List (Cmd msg) ) -> ( a, List (Cmd msg) )
+        fn msg ( x, cmds ) =
+            let
+                ( next, cmd_ ) =
+                    config.update msg x
+            in
+            ( next
+            , cmd_ :: cmds
+            )
     in
-    FileSystem.Handle.open mode path
-        |> Task.andThen
-            (\v ->
-                FileSystem.Handle.read v
-                    |> Task.map (\v2 -> ( v, v2 ))
-            )
-
-
-
---
-
-
-sendMessageToSelf : a -> Cmd a
-sendMessageToSelf a =
-    Task.succeed () |> Task.perform (\() -> a)
-
-
-updateMultiple : (msg -> model -> ( model, Cmd msg )) -> List msg -> ( model, Cmd msg ) -> ( model, Cmd msg )
-updateMultiple updateFn messages ( model, cmd ) =
     messages
-        |> List.foldl
-            (\msg ( model_, cmds ) ->
-                updateFn msg model_
-                    |> Tuple.mapSecond (\v -> v :: cmds)
-            )
-            ( model
-            , [ cmd ]
-            )
+        |> List.foldl fn ( a, [ cmd ] )
         |> Tuple.mapSecond Cmd.batch
+
+
+logMessage : LogMessage.LogMessage -> Task.Task JavaScript.Error ()
+logMessage a =
+    let
+        fn : String -> Task.Task JavaScript.Error ()
+        fn =
+            case a.type_ of
+                LogMessage.Info ->
+                    Console.logInfo
+
+                LogMessage.Warning ->
+                    Console.logWarning
+
+                LogMessage.Error ->
+                    Console.logError
+    in
+    fn (Codec.encodeToString 0 LogMessage.codec a)
