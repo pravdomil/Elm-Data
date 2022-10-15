@@ -1,7 +1,7 @@
 module MemoryImage.FileSystem exposing
     ( Image, image
-    , Config
-    , Msg, init, update, sendMessage, turnOffDailySave
+    , Config, DailySave(..)
+    , Msg, init, update, sendMessage
     , subscriptions
     )
 
@@ -9,9 +9,9 @@ module MemoryImage.FileSystem exposing
 
 @docs Image, image
 
-@docs Config
+@docs Config, DailySave
 
-@docs Msg, init, update, sendMessage, turnOffDailySave
+@docs Msg, init, update, sendMessage
 
 @docs subscriptions
 
@@ -22,6 +22,7 @@ import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
+import Json.Decode
 import Json.Encode
 import LogMessage
 import MemoryImage.FileImage
@@ -47,8 +48,10 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { init : () -> ( a, Cmd msg )
+    { init : Maybe a -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
+    , subscriptions : a -> Sub msg
+    , toDailySave : a -> DailySave
     }
 
 
@@ -61,19 +64,17 @@ type alias Model msg a =
     , image : Result Error (ReadyImage a)
     , saveQueue : List msg
     , saveMode : SaveMode
-    , dailySave : DailySave
     }
 
 
-init : FileSystem.Path -> ( Image msg a, Cmd (Msg msg) )
-init path =
+init : FileSystem.Path -> Json.Decode.Value -> ( Image msg a, Cmd (Msg msg) )
+init path _ =
     ( Image
         (Model
             path
             (Err NoImage)
             []
             SaveMessages
-            DailySave
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
@@ -129,7 +130,6 @@ type Msg msg
     | MessagesSaved (Result JavaScript.Error ())
     | SnapshotSaved (Result JavaScript.Error ())
     | RecoverFromSaveError
-    | DailySaveTurnOffRequested
     | DayElapsed
     | BeforeExit
 
@@ -155,9 +155,6 @@ update config config2 msg (Image model) =
         RecoverFromSaveError ->
             freeHandle model
 
-        DailySaveTurnOffRequested ->
-            setDailySave NoDailySave model
-
         DayElapsed ->
             setSaveMode SaveSnapshot model
 
@@ -171,11 +168,6 @@ update config config2 msg (Image model) =
 sendMessage : Config msg a -> MemoryImage.FileImage.Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
 sendMessage config config2 a model =
     update config config2 (MessageReceived a) model
-
-
-turnOffDailySave : Config msg a -> MemoryImage.FileImage.Config msg a -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-turnOffDailySave config config2 model =
-    update config config2 DailySaveTurnOffRequested model
 
 
 
@@ -218,16 +210,14 @@ imageLoaded config config2 result model =
         toImage ( content, handle ) =
             (case content of
                 "" ->
-                    Ok (config.init ())
+                    Ok (config.init Nothing)
 
                 _ ->
                     MemoryImage.FileImage.fromString config2 content
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
-                                ( MemoryImage.FileImage.image config.update x
-                                , Cmd.none
-                                )
+                                config.init (Just (MemoryImage.FileImage.image config.update x))
                             )
             )
                 |> Result.map (\x -> ( x, handle ))
@@ -433,13 +423,6 @@ setSaveMode a model =
     )
 
 
-setDailySave : DailySave -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-setDailySave a model =
-    ( { model | dailySave = a }
-    , Cmd.none
-    )
-
-
 log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
 log a model =
     ( model
@@ -452,13 +435,21 @@ log a model =
 --
 
 
-subscriptions : Image msg a -> Sub (Msg msg)
-subscriptions (Image a) =
-    case a.dailySave of
-        DailySave ->
-            Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
+subscriptions : Config msg a -> Image msg a -> Sub (Msg msg)
+subscriptions config (Image a) =
+    case a.image of
+        Ok b ->
+            Sub.batch
+                [ case config.toDailySave b.image of
+                    DailySave ->
+                        Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-        NoDailySave ->
+                    NoDailySave ->
+                        Sub.none
+                , config.subscriptions b.image |> Sub.map MessageReceived
+                ]
+
+        Err _ ->
             Sub.none
 
 
