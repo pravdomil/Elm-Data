@@ -56,7 +56,7 @@ type Status
 type Msg
     = NothingHappened
     | MessageReceived (MemoryImage.FileSystem.Msg Model.Msg)
-    | SecondElapsed
+    | SecondElapsed Time.Posix
     | ExitSignalReceived
 
 
@@ -70,8 +70,8 @@ update msg model =
             MemoryImage.FileSystem.update Model.config Model.config2 b model.image
                 |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
 
-        SecondElapsed ->
-            MemoryImage.FileSystem.sendMessage Model.config Model.config2 Model.IncreaseCounter model.image
+        SecondElapsed b ->
+            MemoryImage.FileSystem.sendMessage Model.config Model.config2 (Model.LogTime b) model.image
                 |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
 
         ExitSignalReceived ->
@@ -80,7 +80,7 @@ update msg model =
             )
                 |> Platform.Extra.andThen
                     (\x ->
-                        MemoryImage.FileSystem.close Model.config Model.config2 x.image
+                        MemoryImage.FileSystem.turnOffDailySave Model.config Model.config2 x.image
                             |> Tuple.mapBoth (\x2 -> { x | image = x2 }) (Cmd.map MessageReceived)
                     )
     )
@@ -110,7 +110,7 @@ subscriptions model =
     Sub.batch
         [ case model.status of
             Running ->
-                Time.every 1000 (\_ -> SecondElapsed)
+                Time.every 1000 SecondElapsed
 
             Exiting ->
                 Sub.none
