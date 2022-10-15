@@ -56,8 +56,8 @@ type Status
 type Msg
     = NothingHappened
     | MessageReceived (MemoryImage.FileSystem.Msg Model.Msg)
-    | ExitSignalReceived
     | SecondElapsed
+    | ExitSignalReceived
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -70,6 +70,10 @@ update msg model =
             MemoryImage.FileSystem.update Model.config Model.config2 b model.image
                 |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
 
+        SecondElapsed ->
+            MemoryImage.FileSystem.sendMessage Model.config Model.config2 Model.IncreaseCounter model.image
+                |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
+
         ExitSignalReceived ->
             ( { model | status = Exiting }
             , Cmd.none
@@ -79,10 +83,6 @@ update msg model =
                         MemoryImage.FileSystem.close Model.config Model.config2 x.image
                             |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
                     )
-
-        SecondElapsed ->
-            MemoryImage.FileSystem.sendMessage Model.config Model.config2 Model.IncreaseCounter model.image
-                |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
     )
         |> (\( x, cmd ) ->
                 let
