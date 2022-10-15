@@ -1,8 +1,7 @@
 module MemoryImage.FileSystem exposing
     ( Image, image
     , Config, DailySave(..)
-    , Msg, init, update, sendMessage
-    , subscriptions
+    , Msg, init, update, subscriptions, sendMessage
     )
 
 {-|
@@ -11,9 +10,7 @@ module MemoryImage.FileSystem exposing
 
 @docs Config, DailySave
 
-@docs Msg, init, update, sendMessage
-
-@docs subscriptions
+@docs Msg, init, update, subscriptions, sendMessage
 
 -}
 
