@@ -87,6 +87,12 @@ update msg model =
         |> (\( x, cmd ) ->
                 let
                     _ =
+                        Debug.log "" ""
+
+                    _ =
+                        Debug.log "Message" msg
+
+                    _ =
                         Debug.log "Image" (x.image |> MemoryImage.FileSystem.image)
                 in
                 ( x
@@ -108,5 +114,6 @@ subscriptions model =
 
             Exiting ->
                 Sub.none
-        , MemoryImage.FileSystem.subscriptions model.image |> Sub.map MessageReceived
+        , MemoryImage.FileSystem.subscriptions model.image
+            |> Sub.map MessageReceived
         ]
