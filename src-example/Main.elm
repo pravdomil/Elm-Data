@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import FileSystem
 import MemoryImage.FileSystem
+import Model
 import Platform.Extra
 import Process.Extra
 import Time
@@ -21,7 +22,7 @@ main =
 
 type alias Model =
     { status : Status
-    , image : MemoryImage.FileSystem.Image ImageMsg Image
+    , image : MemoryImage.FileSystem.Image Model.Msg Model.Model
     }
 
 
@@ -29,7 +30,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
     let
         ( image, cmd ) =
-            MemoryImage.FileSystem.init imageConfig (FileSystem.Path "image.jsonl")
+            MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
     in
     ( Model Running image
     , Cmd.batch
@@ -54,7 +55,7 @@ type Status
 
 type Msg
     = NothingHappened
-    | MessageReceived (MemoryImage.FileSystem.Msg ImageMsg)
+    | MessageReceived (MemoryImage.FileSystem.Msg Model.Msg)
     | ExitSignalReceived
     | SecondElapsed
 
@@ -66,25 +67,29 @@ update msg model =
             Platform.Extra.noOperation model
 
         MessageReceived b ->
-            MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
-                |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map MessageReceived)
+            MemoryImage.FileSystem.update Model.config Model.config2 b model.image
+                |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
 
         ExitSignalReceived ->
             ( { model | status = Exiting }
-            , MemoryImage.FileSystem.close |> Cmd.map MessageReceived
+            , Cmd.none
             )
+                |> Platform.Extra.andThen
+                    (\x ->
+                        MemoryImage.FileSystem.close Model.config Model.config2 x.image
+                            |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
+                    )
 
         SecondElapsed ->
-            ( model
-            , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map MessageReceived
-            )
+            MemoryImage.FileSystem.sendMessage Model.config Model.config2 Model.IncreaseCounter model.image
+                |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
     )
-        |> (\( v, cmd ) ->
+        |> (\( x, cmd ) ->
                 let
                     _ =
-                        Debug.log "Image" (v.image |> MemoryImage.FileSystem.image)
+                        Debug.log "Image" (x.image |> MemoryImage.FileSystem.image)
                 in
-                ( v
+                ( x
                 , cmd
                 )
            )
