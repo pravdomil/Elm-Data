@@ -72,7 +72,7 @@ update msg model =
 
         SecondElapsed ->
             MemoryImage.FileSystem.sendMessage Model.config Model.config2 Model.IncreaseCounter model.image
-                |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
+                |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
 
         ExitSignalReceived ->
             ( { model | status = Exiting }
@@ -81,7 +81,7 @@ update msg model =
                 |> Platform.Extra.andThen
                     (\x ->
                         MemoryImage.FileSystem.close Model.config Model.config2 x.image
-                            |> Tuple.mapBoth (\x2 -> { model | image = x2 }) (Cmd.map MessageReceived)
+                            |> Tuple.mapBoth (\x2 -> { x | image = x2 }) (Cmd.map MessageReceived)
                     )
     )
         |> (\( x, cmd ) ->
