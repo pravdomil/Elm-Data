@@ -7,7 +7,9 @@ import MemoryImage.FileSystem
 
 config : MemoryImage.FileSystem.Config Msg Model
 config =
-    MemoryImage.FileSystem.Config init update
+    MemoryImage.FileSystem.Config
+        init
+        update
 
 
 config2 : MemoryImage.FileImage.Config Msg Model
