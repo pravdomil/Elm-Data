@@ -21,8 +21,8 @@ main =
 
 
 type alias Model =
-    { status : Status
-    , image : MemoryImage.FileSystem.Image Model.Msg Model.Model
+    { image : MemoryImage.FileSystem.Image Model.Msg Model.Model
+    , status : Status
     }
 
 
@@ -32,7 +32,7 @@ init () =
         ( image, cmd ) =
             MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
     in
-    ( Model Running image
+    ( Model image Running
     , Cmd.batch
         [ cmd |> Cmd.map MessageReceived
         , Process.Extra.onExitSignal ExitSignalReceived
