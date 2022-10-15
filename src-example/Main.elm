@@ -1,19 +1,36 @@
 module Main exposing (..)
 
+import Codec
 import FileSystem
+import MemoryImage.FileImage
 import MemoryImage.FileSystem
-import Model
+import MemoryImage.Worker
 import Platform.Extra
 import Process.Extra
 import Time
+import Time.Codec
 
 
 main =
-    Platform.worker
-        { init = init
-        , update = update
-        , subscriptions = subscriptions
-        }
+    MemoryImage.Worker.worker config config2 (FileSystem.Path "image.jsonl")
+
+
+config : MemoryImage.FileSystem.Config Msg Model
+config =
+    MemoryImage.FileSystem.Config
+        init
+        update
+        subscriptions
+        (.status >> statusToDailySave)
+
+
+config2 : MemoryImage.FileImage.Config Msg Model
+config2 =
+    MemoryImage.FileImage.Config
+        (Codec.encoder codec)
+        (Codec.decoder codec)
+        (Codec.encoder msgCodec)
+        (Codec.decoder msgCodec)
 
 
 
@@ -21,22 +38,24 @@ main =
 
 
 type alias Model =
-    { image : MemoryImage.FileSystem.Image Model.Msg Model.Model
+    { messages : List String
     , status : Status
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init () =
-    let
-        ( image, cmd ) =
-            MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
-    in
-    ( Model image Running
-    , Cmd.batch
-        [ cmd |> Cmd.map MessageReceived
-        , Process.Extra.onExitSignal ExitSignalReceived
-        ]
+init : Maybe Model -> ( Model, Cmd Msg )
+init a =
+    ( case a of
+        Just b ->
+            { b
+                | status = Running
+            }
+
+        Nothing ->
+            Model
+                [ "Welcome." ]
+                Running
+    , Process.Extra.onExitSignal ExitSignalReceived
     )
 
 
@@ -49,56 +68,46 @@ type Status
     | Exiting
 
 
+statusToDailySave : Status -> MemoryImage.FileSystem.DailySave
+statusToDailySave a =
+    case a of
+        Running ->
+            MemoryImage.FileSystem.DailySave
+
+        Exiting ->
+            MemoryImage.FileSystem.NoDailySave
+
+
 
 --
 
 
 type Msg
     = NothingHappened
-    | MessageReceived (MemoryImage.FileSystem.Msg Model.Msg)
-    | SecondElapsed Time.Posix
+    | LogTime Time.Posix
     | ExitSignalReceived
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    (case msg of
+    case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        MessageReceived b ->
-            MemoryImage.FileSystem.update Model.config Model.config2 b model.image
-                |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
-
-        SecondElapsed b ->
-            MemoryImage.FileSystem.sendMessage Model.config Model.config2 (Model.LogTime b) model.image
-                |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map MessageReceived)
+        LogTime b ->
+            let
+                message : String
+                message =
+                    String.fromInt (b |> Time.posixToMillis |> (\x -> modBy 1000 (x // 1000)))
+            in
+            ( { model | messages = message :: model.messages }
+            , Cmd.none
+            )
 
         ExitSignalReceived ->
             ( { model | status = Exiting }
             , Cmd.none
             )
-                |> Platform.Extra.andThen
-                    (\x ->
-                        MemoryImage.FileSystem.turnOffDailySave Model.config Model.config2 x.image
-                            |> Tuple.mapBoth (\x2 -> { x | image = x2 }) (Cmd.map MessageReceived)
-                    )
-    )
-        |> (\( x, cmd ) ->
-                let
-                    _ =
-                        Debug.log "" ""
-
-                    _ =
-                        Debug.log "Message" msg
-
-                    _ =
-                        Debug.log "Image" (x.image |> MemoryImage.FileSystem.image)
-                in
-                ( x
-                , cmd
-                )
-           )
 
 
 
@@ -107,13 +116,63 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ case model.status of
-            Running ->
-                Time.every 1000 SecondElapsed
+    case model.status of
+        Running ->
+            Time.every 1000 LogTime
 
-            Exiting ->
-                Sub.none
-        , MemoryImage.FileSystem.subscriptions model.image
-            |> Sub.map MessageReceived
-        ]
+        Exiting ->
+            Sub.none
+
+
+
+--
+
+
+codec : Codec.Codec Model
+codec =
+    Codec.record (\x1 x2 -> { messages = x1, status = x2 })
+        |> Codec.field .messages (Codec.list Codec.string)
+        |> Codec.field .status statusCodec
+        |> Codec.buildRecord
+
+
+statusCodec : Codec.Codec Status
+statusCodec =
+    Codec.lazy
+        (\() ->
+            Codec.custom
+                (\fn1 fn2 x ->
+                    case x of
+                        Running ->
+                            fn1
+
+                        Exiting ->
+                            fn2
+                )
+                |> Codec.variant0 Running
+                |> Codec.variant0 Exiting
+                |> Codec.buildCustom
+        )
+
+
+msgCodec : Codec.Codec Msg
+msgCodec =
+    Codec.lazy
+        (\() ->
+            Codec.custom
+                (\fn1 fn2 fn3 x ->
+                    case x of
+                        NothingHappened ->
+                            fn1
+
+                        LogTime x1 ->
+                            fn2 x1
+
+                        ExitSignalReceived ->
+                            fn3
+                )
+                |> Codec.variant0 NothingHappened
+                |> Codec.variant1 LogTime Time.Codec.posix
+                |> Codec.variant0 ExitSignalReceived
+                |> Codec.buildCustom
+        )
