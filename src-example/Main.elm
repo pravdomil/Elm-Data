@@ -4,7 +4,6 @@ import Codec
 import FileSystem
 import MemoryImage.FileImage
 import MemoryImage.FileSystem
-import MemoryImage.Worker
 import Platform.Extra
 import Process.Extra
 import Time
@@ -12,7 +11,28 @@ import Time.Codec
 
 
 main =
-    MemoryImage.Worker.worker config config2 (FileSystem.Path "image.jsonl")
+    Platform.worker
+        { init = MemoryImage.FileSystem.init (FileSystem.Path "image.jsonl")
+        , update =
+            \msg a ->
+                MemoryImage.FileSystem.update config config2 msg a
+                    |> (\( x, cmd ) ->
+                            let
+                                _ =
+                                    Debug.log "" ""
+
+                                _ =
+                                    Debug.log "Message" msg
+
+                                _ =
+                                    Debug.log "Image" (MemoryImage.FileSystem.image x)
+                            in
+                            ( x
+                            , cmd
+                            )
+                       )
+        , subscriptions = MemoryImage.FileSystem.subscriptions config
+        }
 
 
 config : MemoryImage.FileSystem.Config Msg Model
