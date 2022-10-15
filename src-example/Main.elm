@@ -48,8 +48,8 @@ config =
 config2 : MemoryImage.FileImage.Config Msg Model
 config2 =
     MemoryImage.FileImage.Config
-        (Codec.encoder codec)
-        (Codec.decoder codec)
+        (Codec.encoder modelCodec)
+        (Codec.decoder modelCodec)
         (Codec.encoder msgCodec)
         (Codec.decoder msgCodec)
 
@@ -149,8 +149,8 @@ subscriptions model =
 --
 
 
-codec : Codec.Codec Model
-codec =
+modelCodec : Codec.Codec Model
+modelCodec =
     Codec.record (\x1 x2 -> { messages = x1, status = x2 })
         |> Codec.field .messages (Codec.list Codec.string)
         |> Codec.field .status statusCodec
