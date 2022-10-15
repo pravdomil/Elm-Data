@@ -35,7 +35,7 @@ init () =
     ( Model Running image
     , Cmd.batch
         [ cmd |> Cmd.map MessageReceived
-        , Process.Extra.onExitSignal ExitSignal
+        , Process.Extra.onExitSignal ExitSignalReceived
         ]
     )
 
@@ -55,9 +55,9 @@ type Status
 
 type Msg
     = MessageReceived (MemoryImage.FileSystem.Msg ImageMsg)
-    | ExitSignal
-    | Tick
-    | NoOperation
+    | ExitSignalReceived
+    | SecondElapsed
+    | NothingHappened
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -67,17 +67,17 @@ update msg model =
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
                 |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map MessageReceived)
 
-        ExitSignal ->
+        ExitSignalReceived ->
             ( { model | status = Exiting }
             , MemoryImage.FileSystem.close |> Cmd.map MessageReceived
             )
 
-        Tick ->
+        SecondElapsed ->
             ( model
             , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map MessageReceived
             )
 
-        NoOperation ->
+        NothingHappened ->
             ( model
             , Cmd.none
             )
@@ -102,7 +102,7 @@ subscriptions model =
     Sub.batch
         [ case model.status of
             Running ->
-                Time.every 1000 (\_ -> Tick)
+                Time.every 1000 (\_ -> SecondElapsed)
 
             Exiting ->
                 Sub.none
