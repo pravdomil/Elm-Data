@@ -1,6 +1,6 @@
 module MemoryImage.FileSystem exposing
     ( Image, image
-    , Config, DailySave(..)
+    , Config, DailySave(..), worker
     , Msg, init, update, subscriptions, sendMessage
     )
 
@@ -8,7 +8,7 @@ module MemoryImage.FileSystem exposing
 
 @docs Image, image
 
-@docs Config, DailySave
+@docs Config, DailySave, worker
 
 @docs Msg, init, update, subscriptions, sendMessage
 
@@ -59,6 +59,19 @@ type alias Config msg a =
 type DailySave
     = DailySave
     | NoDailySave
+
+
+
+--
+
+
+worker : Config msg a -> MemoryImage.FileImage.Config msg a -> FileSystem.Path -> Program Json.Decode.Value (Image msg a) (Msg msg)
+worker config config2 path =
+    Platform.worker
+        { init = init path
+        , update = update config config2
+        , subscriptions = subscriptions config
+        }
 
 
 
