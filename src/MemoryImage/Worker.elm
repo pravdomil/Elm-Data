@@ -45,7 +45,8 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { init : Json.Decode.Value -> Maybe a -> ( a, Cmd msg )
+    { fileImage : MemoryImage.FileImage.Config msg a
+    , init : Json.Decode.Value -> Maybe a -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
@@ -66,11 +67,11 @@ type DailySave
 --
 
 
-worker : Config msg a -> MemoryImage.FileImage.Config msg a -> Program Json.Decode.Value (Image msg a) (Msg msg)
-worker config config2 =
+worker : Config msg a -> Program Json.Decode.Value (Image msg a) (Msg msg)
+worker config =
     Platform.worker
         { init = init config
-        , update = update config config2
+        , update = update config
         , subscriptions = subscriptions config
         }
 
@@ -143,17 +144,17 @@ type Msg msg
     | BeforeExit
 
 
-update : Config msg a -> MemoryImage.FileImage.Config msg a -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-update config config2 msg (Image model) =
+update : Config msg a -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+update config msg (Image model) =
     (case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
 
         ImageLoaded b c ->
-            imageLoaded config config2 b c model
+            imageLoaded config b c model
 
         MessageReceived b ->
-            messageReceived config config2 b model
+            messageReceived config b model
 
         MessagesSaved b ->
             queueSaved b model
@@ -170,13 +171,13 @@ update config config2 msg (Image model) =
         BeforeExit ->
             setSaveMode SaveSnapshot model
     )
-        |> Platform.Extra.andThen (save config config2)
+        |> Platform.Extra.andThen (save config)
         |> Tuple.mapFirst Image
 
 
-sendMessage : Config msg a -> MemoryImage.FileImage.Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-sendMessage config config2 a model =
-    update config config2 (MessageReceived a) model
+sendMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+sendMessage config a model =
+    update config (MessageReceived a) model
 
 
 
@@ -212,8 +213,8 @@ load config flags model =
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> MemoryImage.FileImage.Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-imageLoaded config config2 flags result model =
+imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+imageLoaded config flags result model =
     let
         toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle )
         toImage ( content, handle ) =
@@ -222,7 +223,7 @@ imageLoaded config config2 flags result model =
                     Ok (config.init flags Nothing)
 
                 _ ->
-                    MemoryImage.FileImage.fromString config2 content
+                    MemoryImage.FileImage.fromString config.fileImage content
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
@@ -265,8 +266,8 @@ imageLoaded config config2 flags result model =
 --
 
 
-messageReceived : Config msg a -> MemoryImage.FileImage.Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-messageReceived config _ msg model =
+messageReceived : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+messageReceived config msg model =
     (case model.image of
         Ok a ->
             let
@@ -294,18 +295,18 @@ messageReceived config _ msg model =
 --
 
 
-save : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-save config config2 model =
+save : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+save config model =
     case model.saveMode of
         SaveMessages ->
-            saveMessages config config2 model
+            saveMessages config model
 
         SaveSnapshot ->
-            saveSnapshot config config2 model
+            saveSnapshot config model
 
 
-saveMessages : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-saveMessages _ config2 model =
+saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveMessages config model =
     case model.image of
         Ok a ->
             case a.handle of
@@ -320,7 +321,7 @@ saveMessages _ config2 model =
                                 _ ->
                                     model.saveQueue
                                         |> List.reverse
-                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config2.msgEncoder x))
+                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImage.msgEncoder x))
                                         |> String.join ""
                                         |> Just
                     in
@@ -345,8 +346,8 @@ saveMessages _ config2 model =
             Platform.Extra.noOperation model
 
 
-saveSnapshot : Config msg a -> MemoryImage.FileImage.Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-saveSnapshot _ config2 model =
+saveSnapshot : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveSnapshot config model =
     case model.image of
         Ok a ->
             case a.handle of
@@ -355,7 +356,7 @@ saveSnapshot _ config2 model =
                         data : String
                         data =
                             MemoryImage.FileImage.create [] a.image
-                                |> MemoryImage.FileImage.toString config2
+                                |> MemoryImage.FileImage.toString config.fileImage
                     in
                     ( { model
                         | image = Ok { a | handle = Err handle }
