@@ -44,6 +44,15 @@ init () =
 --
 
 
+type Status
+    = Running
+    | Exiting
+
+
+
+--
+
+
 type Msg
     = GotMemoryImageMsg (MemoryImage.FileSystem.Msg ImageMsg)
     | ExitSignal
@@ -99,12 +108,3 @@ subscriptions model =
                 Sub.none
         , MemoryImage.FileSystem.subscriptions model.image |> Sub.map GotMemoryImageMsg
         ]
-
-
-
---
-
-
-type Status
-    = Running
-    | Exiting
