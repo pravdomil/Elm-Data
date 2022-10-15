@@ -48,6 +48,7 @@ type alias Config msg a =
     { init : Maybe a -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
+    , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
     , toDailySave : a -> DailySave
     }
 
@@ -65,10 +66,10 @@ type DailySave
 --
 
 
-worker : Config msg a -> MemoryImage.FileImage.Config msg a -> FileSystem.Path -> Program Json.Decode.Value (Image msg a) (Msg msg)
-worker config config2 path =
+worker : Config msg a -> MemoryImage.FileImage.Config msg a -> Program Json.Decode.Value (Image msg a) (Msg msg)
+worker config config2 =
     Platform.worker
-        { init = init path
+        { init = init config
         , update = update config config2
         , subscriptions = subscriptions config
         }
@@ -79,25 +80,23 @@ worker config config2 path =
 
 
 type alias Model msg a =
-    { path : FileSystem.Path
-    , image : Result Error (ReadyImage a)
+    { image : Result Error (ReadyImage a)
     , saveQueue : List msg
     , saveMode : SaveMode
     }
 
 
-init : FileSystem.Path -> Json.Decode.Value -> ( Image msg a, Cmd (Msg msg) )
-init path _ =
+init : Config msg a -> Json.Decode.Value -> ( Image msg a, Cmd (Msg msg) )
+init config flags =
     ( Image
         (Model
-            path
             (Err NoImage)
             []
             SaveMessages
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load (config.flagsToImagePath flags) >> Tuple.mapFirst Image)
 
 
 
@@ -184,8 +183,8 @@ sendMessage config config2 a model =
 --
 
 
-load : Model msg a -> ( Model msg a, Cmd (Msg msg) )
-load model =
+load : FileSystem.Path -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+load path model =
     case model.image of
         Err NoImage ->
             let
@@ -200,7 +199,7 @@ load model =
             ( { model
                 | image = Err Loading
               }
-            , FileSystem.Handle.open mode model.path
+            , FileSystem.Handle.open mode path
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x

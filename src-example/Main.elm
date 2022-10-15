@@ -12,7 +12,7 @@ import Time.Codec
 
 main =
     Platform.worker
-        { init = MemoryImage.Worker.init (FileSystem.Path "image.jsonl")
+        { init = MemoryImage.Worker.init config
         , update =
             \msg a ->
                 MemoryImage.Worker.update config config2 msg a
@@ -41,6 +41,7 @@ config =
         init
         update
         subscriptions
+        (\_ -> FileSystem.Path "image.jsonl")
         (.status >> statusToDailySave)
 
 
