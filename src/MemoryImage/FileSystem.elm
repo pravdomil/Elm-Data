@@ -59,6 +59,15 @@ type alias Config msg a =
 --
 
 
+type DailySave
+    = DailySave
+    | NoDailySave
+
+
+
+--
+
+
 type alias Model msg a =
     { path : FileSystem.Path
     , image : Result Error (ReadyImage a)
@@ -108,15 +117,6 @@ type Error
 type SaveMode
     = SaveMessages
     | SaveSnapshot
-
-
-
---
-
-
-type DailySave
-    = DailySave
-    | NoDailySave
 
 
 
