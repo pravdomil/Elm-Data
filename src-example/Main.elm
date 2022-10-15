@@ -1,8 +1,6 @@
 module Main exposing (..)
 
-import Codec
 import FileSystem
-import MemoryImage
 import MemoryImage.FileSystem
 import Process.Extra
 import Time
