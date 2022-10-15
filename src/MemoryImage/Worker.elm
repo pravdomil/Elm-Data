@@ -45,7 +45,7 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { init : Maybe a -> ( a, Cmd msg )
+    { init : Json.Decode.Value -> Maybe a -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
@@ -96,7 +96,7 @@ init config flags =
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load (config.flagsToImagePath flags) >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config flags >> Tuple.mapFirst Image)
 
 
 
@@ -134,7 +134,7 @@ type SaveMode
 
 type Msg msg
     = NothingHappened
-    | ImageLoaded (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
+    | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
     | SnapshotSaved (Result JavaScript.Error ())
@@ -149,8 +149,8 @@ update config config2 msg (Image model) =
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        ImageLoaded b ->
-            imageLoaded config config2 b model
+        ImageLoaded b c ->
+            imageLoaded config config2 b c model
 
         MessageReceived b ->
             messageReceived config config2 b model
@@ -183,8 +183,8 @@ sendMessage config config2 a model =
 --
 
 
-load : FileSystem.Path -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-load path model =
+load : Config msg a -> Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+load config flags model =
     case model.image of
         Err NoImage ->
             let
@@ -199,34 +199,34 @@ load path model =
             ( { model
                 | image = Err Loading
               }
-            , FileSystem.Handle.open mode path
+            , FileSystem.Handle.open mode (config.flagsToImagePath flags)
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x
                             |> Task.map (\x2 -> ( x2, x ))
                     )
-                |> Task.attempt ImageLoaded
+                |> Task.attempt (ImageLoaded flags)
             )
 
         _ ->
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> MemoryImage.FileImage.Config msg a -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-imageLoaded config config2 result model =
+imageLoaded : Config msg a -> MemoryImage.FileImage.Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+imageLoaded config config2 flags result model =
     let
         toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle )
         toImage ( content, handle ) =
             (case content of
                 "" ->
-                    Ok (config.init Nothing)
+                    Ok (config.init flags Nothing)
 
                 _ ->
                     MemoryImage.FileImage.fromString config2 content
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
-                                config.init (Just (MemoryImage.FileImage.image config.update x))
+                                config.init flags (Just (MemoryImage.FileImage.image config.update x))
                             )
             )
                 |> Result.map (\x -> ( x, handle ))
