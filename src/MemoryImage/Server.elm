@@ -1,4 +1,4 @@
-module MemoryServer exposing (..)
+module MemoryImage.Server exposing (..)
 
 import FileSystem
 import Http.Server
