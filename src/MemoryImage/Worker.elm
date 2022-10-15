@@ -456,7 +456,8 @@ subscriptions config (Image a) =
 
                     NoDailySave ->
                         Sub.none
-                , config.subscriptions b.image |> Sub.map MessageReceived
+                , config.subscriptions b.image
+                    |> Sub.map MessageReceived
                 ]
 
         Err _ ->
