@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Codec
 import FileSystem
+import Json.Decode
 import MemoryImage.FileImage
 import MemoryImage.Worker
 import Platform.Extra
@@ -64,18 +65,33 @@ type alias Model =
     }
 
 
-init : Maybe Model -> ( Model, Cmd Msg )
-init a =
-    ( case a of
-        Just b ->
-            { b
-                | state = Running
-            }
+init : Json.Decode.Value -> Maybe Model -> ( Model, Cmd Msg )
+init flags a =
+    let
+        model : Model
+        model =
+            case a of
+                Just b ->
+                    b
 
-        Nothing ->
-            Model
-                [ "Welcome." ]
-                Running
+                Nothing ->
+                    Model
+                        [ "Welcome." ]
+                        Running
+
+        pid : Int
+        pid =
+            flags
+                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int)
+                |> Result.withDefault 0
+    in
+    ( model
+        |> (\x ->
+                { x
+                    | messages = ("Running with pid " ++ String.fromInt pid ++ ".") :: x.messages
+                    , state = Running
+                }
+           )
     , Process.Extra.onExitSignal ExitSignalReceived
     )
 
