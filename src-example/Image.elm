@@ -1,6 +1,7 @@
 module Image exposing (..)
 
 import Codec
+import MemoryImage.FileImage
 
 
 type alias Image =
@@ -11,6 +12,15 @@ type alias Image =
 init : () -> Image
 init () =
     Image 0
+
+
+config : MemoryImage.FileImage.Config Msg Image
+config =
+    MemoryImage.FileImage.Config
+        (Codec.encoder codec)
+        (Codec.decoder codec)
+        (Codec.encoder msgCodec)
+        (Codec.decoder msgCodec)
 
 
 
