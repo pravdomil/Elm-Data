@@ -59,7 +59,7 @@ update msg model =
             let
                 message : String
                 message =
-                    String.fromInt (Time.toSecond Time.utc b)
+                    String.fromInt (b |> Time.posixToMillis |> (\x -> modBy 1000 (x // 1000)))
             in
             ( { model | messages = message :: model.messages }
             , Cmd.none
