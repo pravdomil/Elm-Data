@@ -1,7 +1,7 @@
 module MemoryImage.Worker exposing
     ( Image, image
     , Config, DailySave(..), worker
-    , Msg, init, update, subscriptions, sendMessage
+    , Msg, init, update, updateByMessage, subscriptions
     )
 
 {-|
@@ -10,7 +10,7 @@ module MemoryImage.Worker exposing
 
 @docs Config, DailySave, worker
 
-@docs Msg, init, update, subscriptions, sendMessage
+@docs Msg, init, update, updateByMessage, subscriptions
 
 -}
 
@@ -175,8 +175,8 @@ update config msg (Image model) =
         |> Tuple.mapFirst Image
 
 
-sendMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
-sendMessage config a model =
+updateByMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+updateByMessage config a model =
     update config (MessageReceived a) model
 
 
