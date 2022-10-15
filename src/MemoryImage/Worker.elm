@@ -45,10 +45,14 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { fileImage : MemoryImage.FileImage.Config msg a
+    { fileImageConfig : MemoryImage.FileImage.Config msg a
+
+    --
     , init : Json.Decode.Value -> Maybe a -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
+
+    --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
     , toDailySave : a -> DailySave
     }
@@ -223,7 +227,7 @@ imageLoaded config flags result model =
                     Ok (config.init flags Nothing)
 
                 _ ->
-                    MemoryImage.FileImage.fromString config.fileImage content
+                    MemoryImage.FileImage.fromString config.fileImageConfig content
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
@@ -321,7 +325,7 @@ saveMessages config model =
                                 _ ->
                                     model.saveQueue
                                         |> List.reverse
-                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImage.msgEncoder x))
+                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImageConfig.msgEncoder x))
                                         |> String.join ""
                                         |> Just
                     in
@@ -356,7 +360,7 @@ saveSnapshot config model =
                         data : String
                         data =
                             MemoryImage.FileImage.create [] a.image
-                                |> MemoryImage.FileImage.toString config.fileImage
+                                |> MemoryImage.FileImage.toString config.fileImageConfig
                     in
                     ( { model
                         | image = Ok { a | handle = Err handle }
