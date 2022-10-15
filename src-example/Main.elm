@@ -16,7 +16,7 @@ main =
         { init = MemoryImage.Worker.init config
         , update =
             \msg a ->
-                MemoryImage.Worker.update config config2 msg a
+                MemoryImage.Worker.update config msg a
                     |> (\( x, cmd ) ->
                             let
                                 _ =
@@ -39,20 +39,17 @@ main =
 config : MemoryImage.Worker.Config Msg Model
 config =
     MemoryImage.Worker.Config
+        (MemoryImage.FileImage.Config
+            (Codec.encoder modelCodec)
+            (Codec.decoder modelCodec)
+            (Codec.encoder msgCodec)
+            (Codec.decoder msgCodec)
+        )
         init
         update
         subscriptions
         (\_ -> FileSystem.Path "image.jsonl")
         (.state >> stateToDailySave)
-
-
-config2 : MemoryImage.FileImage.Config Msg Model
-config2 =
-    MemoryImage.FileImage.Config
-        (Codec.encoder modelCodec)
-        (Codec.decoder modelCodec)
-        (Codec.encoder msgCodec)
-        (Codec.decoder msgCodec)
 
 
 
