@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import FileSystem
 import MemoryImage.FileSystem
+import Platform.Extra
 import Process.Extra
 import Time
 
@@ -62,9 +63,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
         NothingHappened ->
-            ( model
-            , Cmd.none
-            )
+            Platform.Extra.noOperation model
 
         MessageReceived b ->
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
