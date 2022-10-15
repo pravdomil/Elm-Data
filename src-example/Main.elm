@@ -34,7 +34,7 @@ init () =
     in
     ( Model Running image
     , Cmd.batch
-        [ cmd |> Cmd.map GotMemoryImageMsg
+        [ cmd |> Cmd.map MessageReceived
         , Process.Extra.onExitSignal ExitSignal
         ]
     )
@@ -54,7 +54,7 @@ type Status
 
 
 type Msg
-    = GotMemoryImageMsg (MemoryImage.FileSystem.Msg ImageMsg)
+    = MessageReceived (MemoryImage.FileSystem.Msg ImageMsg)
     | ExitSignal
     | Tick
     | NoOperation
@@ -63,18 +63,18 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
-        GotMemoryImageMsg b ->
+        MessageReceived b ->
             MemoryImage.FileSystem.update imageConfig initImage updateImage b model.image
-                |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map GotMemoryImageMsg)
+                |> Tuple.mapBoth (\v -> { model | image = v }) (Cmd.map MessageReceived)
 
         ExitSignal ->
             ( { model | status = Exiting }
-            , MemoryImage.FileSystem.close |> Cmd.map GotMemoryImageMsg
+            , MemoryImage.FileSystem.close |> Cmd.map MessageReceived
             )
 
         Tick ->
             ( model
-            , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map GotMemoryImageMsg
+            , MemoryImage.FileSystem.sendMessage IncreaseCounter |> Cmd.map MessageReceived
             )
 
         NoOperation ->
@@ -106,5 +106,5 @@ subscriptions model =
 
             Exiting ->
                 Sub.none
-        , MemoryImage.FileSystem.subscriptions model.image |> Sub.map GotMemoryImageMsg
+        , MemoryImage.FileSystem.subscriptions model.image |> Sub.map MessageReceived
         ]
