@@ -2,20 +2,16 @@ module Image exposing (..)
 
 import Codec
 import MemoryImage.FileImage
+import MemoryImage.FileSystem
 
 
-type alias Image =
-    { counter : Int
-    }
-
-
-init : () -> Image
-init () =
-    Image 0
-
-
-config : MemoryImage.FileImage.Config Msg Image
+config : MemoryImage.FileSystem.Config Msg Image
 config =
+    MemoryImage.FileSystem.Config init update
+
+
+config2 : MemoryImage.FileImage.Config Msg Image
+config2 =
     MemoryImage.FileImage.Config
         (Codec.encoder codec)
         (Codec.decoder codec)
@@ -27,8 +23,33 @@ config =
 --
 
 
+type alias Image =
+    { counter : Int
+    }
+
+
+init : () -> ( Image, Cmd Msg )
+init () =
+    ( Image 0
+    , Cmd.none
+    )
+
+
+
+--
+
+
 type Msg
     = IncreaseCounter
+
+
+update : Msg -> Image -> ( Image, Cmd Msg )
+update msg model =
+    case msg of
+        IncreaseCounter ->
+            ( { model | counter = model.counter + 1 }
+            , Cmd.none
+            )
 
 
 
