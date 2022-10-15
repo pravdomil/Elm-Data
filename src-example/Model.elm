@@ -1,16 +1,16 @@
-module Image exposing (..)
+module Model exposing (..)
 
 import Codec
 import MemoryImage.FileImage
 import MemoryImage.FileSystem
 
 
-config : MemoryImage.FileSystem.Config Msg Image
+config : MemoryImage.FileSystem.Config Msg Model
 config =
     MemoryImage.FileSystem.Config init update
 
 
-config2 : MemoryImage.FileImage.Config Msg Image
+config2 : MemoryImage.FileImage.Config Msg Model
 config2 =
     MemoryImage.FileImage.Config
         (Codec.encoder codec)
@@ -23,14 +23,14 @@ config2 =
 --
 
 
-type alias Image =
+type alias Model =
     { counter : Int
     }
 
 
-init : () -> ( Image, Cmd Msg )
+init : () -> ( Model, Cmd Msg )
 init () =
-    ( Image 0
+    ( Model 0
     , Cmd.none
     )
 
@@ -43,7 +43,7 @@ type Msg
     = IncreaseCounter
 
 
-update : Msg -> Image -> ( Image, Cmd Msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         IncreaseCounter ->
@@ -56,7 +56,7 @@ update msg model =
 --
 
 
-codec : Codec.Codec Image
+codec : Codec.Codec Model
 codec =
     Codec.record (\x1 -> { counter = x1 })
         |> Codec.field .counter Codec.int
