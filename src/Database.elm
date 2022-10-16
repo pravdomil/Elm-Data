@@ -90,34 +90,13 @@ insert config ( id, new ) (Database index db) =
         Just old ->
             Database
                 (removeIndexForId config id old index
-                    |> (\x ->
-                            config.toIndexes new
-                                |> List.foldl
-                                    (\x2 acc ->
-                                        acc
-                                            |> Dict.Any.insert
-                                                (Tuple.mapBoth config.indexToComparable Id.toString)
-                                                ( x2, id )
-                                                ()
-                                    )
-                                    x
-                       )
+                    |> insertIndexForId config id new
                 )
                 (Dict.Any.insert Id.toString id new db)
 
         Nothing ->
             Database
-                (config.toIndexes new
-                    |> List.foldl
-                        (\x acc ->
-                            acc
-                                |> Dict.Any.insert
-                                    (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( x, id )
-                                    ()
-                        )
-                        index
-                )
+                (insertIndexForId config id new index)
                 (Dict.Any.insert Id.toString id new db)
 
 
@@ -161,6 +140,16 @@ codec config a =
 
 
 --
+
+
+insertIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
+insertIndexForId config id a index =
+    config.toIndexes a
+        |> List.foldl
+            (\x acc ->
+                Dict.Any.insert (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) () acc
+            )
+            index
 
 
 removeIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
