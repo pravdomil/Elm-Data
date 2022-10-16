@@ -207,19 +207,10 @@ load : Config msg a -> Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (M
 load config flags model =
     case model.image of
         Err NoImage ->
-            let
-                mode : FileSystem.Handle.Mode
-                mode =
-                    FileSystem.Handle.Mode
-                        FileSystem.Handle.Read
-                        FileSystem.Handle.Append
-                        FileSystem.Handle.CreateIfNotExists
-                        FileSystem.Handle.DoNotTruncate
-            in
             ( { model
                 | image = Err Loading
               }
-            , FileSystem.Handle.open mode (config.flagsToImagePath flags)
+            , FileSystem.Handle.open handleMode (config.flagsToImagePath flags)
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x
@@ -558,3 +549,12 @@ logMessage a =
                     Console.logError
     in
     fn (Codec.encodeToString 0 LogMessage.codec a)
+
+
+handleMode : FileSystem.Handle.Mode
+handleMode =
+    FileSystem.Handle.Mode
+        FileSystem.Handle.Read
+        FileSystem.Handle.Append
+        FileSystem.Handle.CreateIfNotExists
+        FileSystem.Handle.DoNotTruncate
