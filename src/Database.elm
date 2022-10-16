@@ -89,15 +89,7 @@ insert config ( id, new ) (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
-                (config.toIndexes old
-                    |> List.foldl
-                        (\x acc ->
-                            acc
-                                |> Dict.Any.remove
-                                    (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( x, id )
-                        )
-                        index
+                (removeIndexForId config id old index
                     |> (\x ->
                             config.toIndexes new
                                 |> List.foldl
