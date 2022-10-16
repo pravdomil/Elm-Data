@@ -185,5 +185,5 @@ codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database inde
 codec config a =
     Codec.list (Codec.tuple Id.codec a)
         |> Codec.map
-            (\(Database _ db) -> db |> Dict.Any.toList)
+            (\x -> x |> documents |> Dict.Any.toList)
             (\x -> empty |> insertMany config x)
