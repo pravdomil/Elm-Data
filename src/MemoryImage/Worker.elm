@@ -176,10 +176,10 @@ update config msg (Image model) =
             messageReceived config b model
 
         MessagesSaved b ->
-            queueSaved b model
+            messageSaved b model
 
         SnapshotSaved b ->
-            queueSaved b model
+            snapshotSaved b model
 
         RecoverFromSaveError ->
             freeHandle model
@@ -399,8 +399,8 @@ saveSnapshot config model =
             Platform.Extra.noOperation model
 
 
-queueSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-queueSaved result model =
+messageSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+messageSaved result model =
     case result of
         Ok () ->
             freeHandle model
@@ -411,7 +411,39 @@ queueSaved result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Error
-                        "Cannot save image."
+                        "Cannot save messages."
+                        (Just (LogMessage.JavaScriptError b))
+            in
+            ( model
+            , Process.sleep 1000
+                |> Task.perform (\() -> RecoverFromSaveError)
+            )
+                |> Platform.Extra.andThen (setSaveMode SaveSnapshot)
+                |> Platform.Extra.andThen (log message)
+
+
+snapshotSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+snapshotSaved result model =
+    case result of
+        Ok () ->
+            let
+                message : LogMessage.LogMessage
+                message =
+                    LogMessage.LogMessage
+                        LogMessage.Info
+                        "Snapshot saved."
+                        Nothing
+            in
+            freeHandle model
+                |> Platform.Extra.andThen (log message)
+
+        Err b ->
+            let
+                message : LogMessage.LogMessage
+                message =
+                    LogMessage.LogMessage
+                        LogMessage.Error
+                        "Cannot save snapshot."
                         (Just (LogMessage.JavaScriptError b))
             in
             ( model
