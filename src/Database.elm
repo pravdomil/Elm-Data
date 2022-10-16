@@ -1,5 +1,6 @@
 module Database exposing
-    ( Database, empty, codec, Config
+    ( Database, empty, codec
+    , Config
     , documentById, documentsByIndex, idsByIndex, documents
     , insert, insertMany
     , remove, removeMany
@@ -7,7 +8,9 @@ module Database exposing
 
 {-|
 
-@docs Database, empty, codec, Config
+@docs Database, empty, codec
+
+@docs Config
 
 @docs documentById, documentsByIndex, idsByIndex, documents
 
@@ -40,6 +43,16 @@ documents (Database _ db) =
 --
 
 
+type alias Config comparable index a =
+    { toIndexes : a -> List index
+    , indexToComparable : index -> comparable
+    }
+
+
+
+--
+
+
 documentById : Id.Id a -> Database index a -> Maybe ( Id.Id a, a )
 documentById id a =
     a |> documents |> Dict.Any.get Id.toString id |> Maybe.map (Tuple.pair id)
@@ -62,12 +75,6 @@ idsByIndex config a (Database index _) =
             compare index__ (config.indexToComparable i)
     in
     index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
-
-
-type alias Config comparable index a =
-    { toIndexes : a -> List index
-    , indexToComparable : index -> comparable
-    }
 
 
 
