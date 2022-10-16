@@ -1,4 +1,4 @@
-module MemoryImage.Server exposing (..)
+module MemoryImage.Server exposing (Config, init, subscriptions, update, worker)
 
 import Http.Server
 import Http.Server.Worker
