@@ -1,6 +1,6 @@
 module MemoryImage.Worker exposing
     ( Image, image
-    , Config, worker
+    , Config, defaultConfig, worker
     , Msg, init, update, updateByMessage, subscriptions
     )
 
@@ -8,7 +8,7 @@ module MemoryImage.Worker exposing
 
 @docs Image, image
 
-@docs Config, worker
+@docs Config, defaultConfig, worker
 
 @docs Msg, init, update, updateByMessage, subscriptions
 
@@ -57,6 +57,27 @@ type alias Config msg a =
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
     , toRunningState : a -> RunningState.RunningState
     }
+
+
+defaultConfig :
+    MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
+    -> (Json.Decode.Value -> Maybe { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    -> Config msg { a | state : RunningState.RunningState }
+defaultConfig config init_ update_ subscriptions_ =
+    Config
+        config
+        init_
+        update_
+        subscriptions_
+        (\x ->
+            x
+                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string)
+                |> Result.withDefault "image.jsonl"
+                |> FileSystem.stringToPath
+        )
+        (\x -> x.state)
 
 
 
