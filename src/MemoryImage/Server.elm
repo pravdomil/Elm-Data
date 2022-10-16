@@ -1,4 +1,15 @@
-module MemoryImage.Server exposing (Config, defaultConfig, init, subscriptions, update, worker)
+module MemoryImage.Server exposing
+    ( worker, init, update, subscriptions
+    , Config, defaultConfig
+    )
+
+{-|
+
+@docs worker, init, update, subscriptions
+
+@docs Config, defaultConfig
+
+-}
 
 import Http.Server
 import Http.Server.Worker
