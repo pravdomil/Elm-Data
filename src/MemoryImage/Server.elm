@@ -1,11 +1,13 @@
-module MemoryImage.Server exposing (Config, init, subscriptions, update, worker)
+module MemoryImage.Server exposing (Config, defaultConfig, init, subscriptions, update, worker)
 
 import Http.Server
 import Http.Server.Worker
 import Json.Decode
+import MemoryImage.FileImage
 import MemoryImage.Worker
 import Platform.Extra
 import Process.Extra
+import RunningState
 
 
 worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg msg)
@@ -29,6 +31,27 @@ type alias Config msg a =
     , requestReceived : Http.Server.Request -> msg
     , exitSignalReceived : msg
     }
+
+
+defaultConfig :
+    MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
+    -> (Json.Decode.Value -> Maybe { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    -> (Http.Server.Request -> msg)
+    -> msg
+    -> Config msg { a | state : RunningState.RunningState }
+defaultConfig config init_ update_ subscriptions_ requestReceived exitSignalReceived =
+    Config
+        (MemoryImage.Worker.defaultConfig config init_ update_ subscriptions_)
+        (\x ->
+            x
+                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "serverOptions" ] Json.Decode.string)
+                |> Result.andThen (Json.Decode.decodeString Http.Server.optionsDecoder)
+                |> Result.withDefault Http.Server.emptyOptions
+        )
+        requestReceived
+        exitSignalReceived
 
 
 
