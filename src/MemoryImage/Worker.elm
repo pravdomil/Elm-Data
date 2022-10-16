@@ -408,13 +408,17 @@ saveSnapshot config model =
                             (\newHandle ->
                                 FileSystem.Handle.write data newHandle
                                     |> Task.andThen (\() -> FileSystem.rename tmpPath model.imagePath)
-                                    |> Task.andThen (\() -> FileSystem.Handle.close handle)
-                                    |> Task.onError
+                                    |> Task.Extra.andAlwaysThen
                                         (\x2 ->
-                                            FileSystem.Handle.close newHandle
-                                                |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
+                                            case x2 of
+                                                Ok x3 ->
+                                                    FileSystem.Handle.close handle
+                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.succeed newHandle)
+
+                                                Err x3 ->
+                                                    FileSystem.Handle.close newHandle
+                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.fail x3)
                                         )
-                                    |> Task.map (\() -> newHandle)
                             )
                         |> Task.attempt SnapshotSaved
                     )
