@@ -101,6 +101,7 @@ worker config =
 
 type alias Model msg a =
     { image : Result Error (ReadyImage a)
+    , imagePath : FileSystem.Path
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -111,12 +112,13 @@ init config flags =
     ( Image
         (Model
             (Err NoImage)
+            (config.flagsToImagePath flags)
             []
             SaveMessages
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config flags >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load flags >> Tuple.mapFirst Image)
 
 
 
@@ -203,14 +205,14 @@ updateByMessage config a model =
 --
 
 
-load : Config msg a -> Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
-load config flags model =
+load : Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+load flags model =
     case model.image of
         Err NoImage ->
             ( { model
                 | image = Err Loading
               }
-            , FileSystem.Handle.open handleMode (config.flagsToImagePath flags)
+            , FileSystem.Handle.open handleMode model.imagePath
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x
