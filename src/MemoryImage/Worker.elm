@@ -55,6 +55,7 @@ type alias Config msg a =
 
     --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
+    , mapRunningState : (RunningState.RunningState -> RunningState.RunningState) -> a -> a
     , toRunningState : a -> RunningState.RunningState
     }
 
@@ -77,6 +78,7 @@ defaultConfig config init_ update_ subscriptions_ =
                 |> Result.withDefault "image.jsonl"
                 |> FileSystem.stringToPath
         )
+        (\fn x -> { x | state = fn x.state })
         (\x -> x.state)
 
 
@@ -244,7 +246,12 @@ imageLoaded config flags result model =
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
-                                config.init flags (Just (MemoryImage.FileImage.image config.update x))
+                                config.init flags
+                                    (x
+                                        |> MemoryImage.FileImage.image config.update
+                                        |> config.mapRunningState (\_ -> RunningState.Running)
+                                        |> Just
+                                    )
                             )
             )
                 |> Result.map (\x -> ( x, handle ))
