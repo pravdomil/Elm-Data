@@ -273,6 +273,13 @@ imageLoaded config flags result model =
             let
                 ( image_, cmd ) =
                     replayMessages config (List.reverse model.saveQueue) a
+
+                message : LogMessage.LogMessage
+                message =
+                    LogMessage.LogMessage
+                        LogMessage.Info
+                        "Image loaded."
+                        Nothing
             in
             ( { model
                 | image = Ok { image = image_, handle = Ok handle }
@@ -280,6 +287,7 @@ imageLoaded config flags result model =
               }
             , cmd |> Cmd.map MessageReceived
             )
+                |> Platform.Extra.andThen (log message)
 
         Err b ->
             let
