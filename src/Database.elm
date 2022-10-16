@@ -170,9 +170,7 @@ remove config id (Database index db) =
                 )
 
         Nothing ->
-            Database
-                index
-                db
+            Database index db
 
 
 removeMany : Config comparable index a -> List (Id.Id a) -> Database index a -> Database index a
