@@ -212,7 +212,7 @@ load flags model =
             ( { model
                 | image = Err Loading
               }
-            , FileSystem.Handle.open handleMode model.imagePath
+            , FileSystem.Handle.open fileMode model.imagePath
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x
@@ -553,8 +553,8 @@ logMessage a =
     fn (Codec.encodeToString 0 LogMessage.codec a)
 
 
-handleMode : FileSystem.Handle.Mode
-handleMode =
+fileMode : FileSystem.Handle.Mode
+fileMode =
     FileSystem.Handle.Mode
         FileSystem.Handle.Read
         FileSystem.Handle.Append
