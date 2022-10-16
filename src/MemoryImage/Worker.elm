@@ -216,6 +216,11 @@ load flags model =
                 |> Task.andThen
                     (\x ->
                         FileSystem.Handle.read x
+                            |> Task.onError
+                                (\x2 ->
+                                    FileSystem.Handle.close x
+                                        |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
+                                )
                             |> Task.map (\x2 -> ( x2, x ))
                     )
                 |> Task.attempt (ImageLoaded flags)
