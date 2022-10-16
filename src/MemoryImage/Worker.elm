@@ -214,17 +214,17 @@ load flags model =
               }
             , FileSystem.Handle.open fileMode model.imagePath
                 |> Task.andThen
-                    (\x ->
-                        FileSystem.Handle.read x
+                    (\handle ->
+                        FileSystem.Handle.read handle
                             |> Task.Extra.andAlwaysThen
-                                (\x2 ->
-                                    case x2 of
-                                        Ok x3 ->
-                                            Task.succeed ( x3, x )
+                                (\x ->
+                                    case x of
+                                        Ok x2 ->
+                                            Task.succeed ( x2, handle )
 
-                                        Err x3 ->
-                                            FileSystem.Handle.close x
-                                                |> Task.Extra.andAlwaysThen (\_ -> Task.fail x3)
+                                        Err x2 ->
+                                            FileSystem.Handle.close handle
+                                                |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
                                 )
                     )
                 |> Task.attempt (ImageLoaded flags)
