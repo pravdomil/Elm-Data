@@ -99,16 +99,16 @@ insert config ( id, new ) (Database index db) =
                         )
                         index
                     |> (\x ->
-                            List.foldl
-                                (\x2 acc ->
-                                    acc
-                                        |> Dict.Any.insert
-                                            (Tuple.mapBoth config.indexToComparable Id.toString)
-                                            ( x2, id )
-                                            ()
-                                )
-                                x
-                                (config.toIndexes new)
+                            config.toIndexes new
+                                |> List.foldl
+                                    (\x2 acc ->
+                                        acc
+                                            |> Dict.Any.insert
+                                                (Tuple.mapBoth config.indexToComparable Id.toString)
+                                                ( x2, id )
+                                                ()
+                                    )
+                                    x
                        )
                 )
                 (db
