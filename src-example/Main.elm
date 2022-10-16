@@ -87,7 +87,7 @@ init flags a =
                 |> Result.withDefault 0
     in
     ( model
-    , Process.Extra.onExitSignal ExitSignalReceived
+    , Process.Extra.onInterruptAndTerminationSignal ExitRequested
     )
 
 
@@ -98,7 +98,7 @@ init flags a =
 type Msg
     = NothingHappened
     | LogTime Time.Posix
-    | ExitSignalReceived
+    | ExitRequested
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,7 +117,7 @@ update msg model =
             , Cmd.none
             )
 
-        ExitSignalReceived ->
+        ExitRequested ->
             ( { model | state = RunningState.Exiting }
             , Cmd.none
             )
@@ -162,11 +162,11 @@ msgCodec =
                         LogTime x1 ->
                             fn2 x1
 
-                        ExitSignalReceived ->
+                        ExitRequested ->
                             fn3
                 )
                 |> Codec.variant0 NothingHappened
                 |> Codec.variant1 LogTime Time.Codec.posix
-                |> Codec.variant0 ExitSignalReceived
+                |> Codec.variant0 ExitRequested
                 |> Codec.buildCustom
         )

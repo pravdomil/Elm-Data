@@ -29,7 +29,7 @@ type alias Config msg a =
 
     --
     , requestReceived : Http.Server.Request -> msg
-    , exitSignalReceived : msg
+    , exitRequested : msg
     }
 
 
@@ -41,7 +41,7 @@ defaultConfig :
     -> (Http.Server.Request -> msg)
     -> msg
     -> Config msg { a | state : RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ requestReceived exitSignalReceived =
+defaultConfig config init_ update_ subscriptions_ requestReceived exitRequested =
     Config
         (MemoryImage.Worker.defaultConfig config init_ update_ subscriptions_)
         (\x ->
@@ -51,7 +51,7 @@ defaultConfig config init_ update_ subscriptions_ requestReceived exitSignalRece
                 |> Result.withDefault Http.Server.emptyOptions
         )
         requestReceived
-        exitSignalReceived
+        exitRequested
 
 
 
@@ -77,7 +77,7 @@ init config flags =
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
         , cmd2 |> Cmd.map ImageMessageReceived
-        , Process.Extra.onInterruptAndTerminationSignal ExitSignalReceived
+        , Process.Extra.onInterruptAndTerminationSignal ExitRequested
         ]
     )
 
@@ -89,7 +89,7 @@ init config flags =
 type Msg msg
     = ServerMessageReceived Http.Server.Worker.Msg
     | ImageMessageReceived (MemoryImage.Worker.Msg msg)
-    | ExitSignalReceived
+    | ExitRequested
 
 
 update : Config msg a -> Msg msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
@@ -111,9 +111,9 @@ update config msg model =
         ImageMessageReceived b ->
             updateImage config b model
 
-        ExitSignalReceived ->
+        ExitRequested ->
             closeServer model
-                |> Platform.Extra.andThen (updateImageByMessage config config.exitSignalReceived)
+                |> Platform.Extra.andThen (updateImageByMessage config config.exitRequested)
 
 
 
