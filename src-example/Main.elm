@@ -1,12 +1,12 @@
 module Main exposing (..)
 
 import Codec
-import FileSystem
 import Json.Decode
 import MemoryImage.FileImage
 import MemoryImage.Worker
 import Platform.Extra
 import Process.Extra
+import RunningState
 import Time
 import Time.Codec
 
@@ -38,7 +38,7 @@ main =
 
 config : MemoryImage.Worker.Config Msg Model
 config =
-    MemoryImage.Worker.Config
+    MemoryImage.Worker.defaultConfig
         (MemoryImage.FileImage.Config
             (Codec.encoder modelCodec)
             (Codec.decoder modelCodec)
@@ -48,8 +48,6 @@ config =
         init
         update
         subscriptions
-        (\_ -> FileSystem.Path "image.jsonl")
-        (.state >> stateToDailySave)
 
 
 
@@ -58,7 +56,7 @@ config =
 
 type alias Model =
     { messages : List String
-    , state : State
+    , state : RunningState.RunningState
     }
 
 
@@ -69,12 +67,12 @@ init flags a =
         model =
             (case a of
                 Just b ->
-                    { b | state = Running }
+                    { b | state = RunningState.Running }
 
                 Nothing ->
                     Model
                         [ "Welcome." ]
-                        Running
+                        RunningState.Running
             )
                 |> (\x ->
                         { x
@@ -91,25 +89,6 @@ init flags a =
     ( model
     , Process.Extra.onExitSignal ExitSignalReceived
     )
-
-
-
---
-
-
-type State
-    = Running
-    | Exiting
-
-
-stateToDailySave : State -> MemoryImage.Worker.DailySave
-stateToDailySave a =
-    case a of
-        Running ->
-            MemoryImage.Worker.DailySave
-
-        Exiting ->
-            MemoryImage.Worker.NoDailySave
 
 
 
@@ -139,7 +118,7 @@ update msg model =
             )
 
         ExitSignalReceived ->
-            ( { model | state = Exiting }
+            ( { model | state = RunningState.Exiting }
             , Cmd.none
             )
 
@@ -151,10 +130,10 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
-        Running ->
+        RunningState.Running ->
             Time.every 1000 LogTime
 
-        Exiting ->
+        RunningState.Exiting ->
             Sub.none
 
 
@@ -166,27 +145,8 @@ modelCodec : Codec.Codec Model
 modelCodec =
     Codec.record (\x1 x2 -> { messages = x1, state = x2 })
         |> Codec.field .messages (Codec.list Codec.string)
-        |> Codec.field .state stateCodec
+        |> Codec.field .state RunningState.codec
         |> Codec.buildRecord
-
-
-stateCodec : Codec.Codec State
-stateCodec =
-    Codec.lazy
-        (\() ->
-            Codec.custom
-                (\fn1 fn2 x ->
-                    case x of
-                        Running ->
-                            fn1
-
-                        Exiting ->
-                            fn2
-                )
-                |> Codec.variant0 Running
-                |> Codec.variant0 Exiting
-                |> Codec.buildCustom
-        )
 
 
 msgCodec : Codec.Codec Msg
