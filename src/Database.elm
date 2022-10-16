@@ -37,11 +37,6 @@ empty =
     Database Dict.Any.empty Dict.Any.empty
 
 
-documents : Database index a -> Dict.Any.Dict (Id.Id a) a
-documents (Database _ db) =
-    db
-
-
 
 --
 
@@ -54,6 +49,11 @@ type alias Config comparable index a =
 
 
 --
+
+
+documents : Database index a -> Dict.Any.Dict (Id.Id a) a
+documents (Database _ db) =
+    db
 
 
 documentById : Id.Id a -> Database index a -> Maybe a
