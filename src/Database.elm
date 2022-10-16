@@ -86,18 +86,19 @@ idsByIndex config a (Database index _) =
 
 insert : Config comparable index a -> ( Id.Id a, a ) -> Database index a -> Database index a
 insert config ( id, new ) (Database index db) =
-    case db |> Dict.Any.get Id.toString id of
-        Just old ->
-            Database
-                (removeIndexForId config id old index
-                    |> insertIndexForId config id new
-                )
-                (Dict.Any.insert Id.toString id new db)
+    Database
+        (index
+            |> (\x ->
+                    case db |> Dict.Any.get Id.toString id of
+                        Just old ->
+                            removeIndexForId config id old x
 
-        Nothing ->
-            Database
-                (insertIndexForId config id new index)
-                (Dict.Any.insert Id.toString id new db)
+                        Nothing ->
+                            x
+               )
+            |> insertIndexForId config id new
+        )
+        (Dict.Any.insert Id.toString id new db)
 
 
 insertMany : Config comparable index a -> List ( Id.Id a, a ) -> Database index a -> Database index a
