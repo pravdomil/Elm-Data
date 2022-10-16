@@ -81,23 +81,23 @@ insert config ( id, new ) (Database index db) =
             Database
                 (config.toIndexes old
                     |> List.foldl
-                        (\v acc ->
+                        (\x acc ->
                             acc
                                 |> Dict.Any.remove
                                     (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( v, id )
+                                    ( x, id )
                         )
                         index
-                    |> (\v ->
+                    |> (\x ->
                             List.foldl
-                                (\v2 acc ->
+                                (\x2 acc ->
                                     acc
                                         |> Dict.Any.insert
                                             (Tuple.mapBoth config.indexToComparable Id.toString)
-                                            ( v2, id )
+                                            ( x2, id )
                                             ()
                                 )
-                                v
+                                x
                                 (config.toIndexes new)
                        )
                 )
@@ -112,11 +112,11 @@ insert config ( id, new ) (Database index db) =
             Database
                 (config.toIndexes new
                     |> List.foldl
-                        (\v acc ->
+                        (\x acc ->
                             acc
                                 |> Dict.Any.insert
                                     (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( v, id )
+                                    ( x, id )
                                     ()
                         )
                         index
@@ -145,11 +145,11 @@ remove config id (Database index db) =
             Database
                 (config.toIndexes old
                     |> List.foldl
-                        (\v acc ->
+                        (\x acc ->
                             acc
                                 |> Dict.Any.remove
                                     (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( v, id )
+                                    ( x, id )
                         )
                         index
                 )
@@ -179,4 +179,4 @@ codec config a =
     Codec.list (Codec.tuple Id.codec a)
         |> Codec.map
             (\(Database _ db) -> db |> Dict.Any.toList)
-            (\v -> empty |> insertMany config v)
+            (\x -> empty |> insertMany config x)
