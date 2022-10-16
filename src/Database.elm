@@ -103,12 +103,7 @@ insert config ( id, new ) (Database index db) =
                                     x
                        )
                 )
-                (db
-                    |> Dict.Any.insert
-                        Id.toString
-                        id
-                        new
-                )
+                (Dict.Any.insert Id.toString id new db)
 
         Nothing ->
             Database
@@ -123,12 +118,7 @@ insert config ( id, new ) (Database index db) =
                         )
                         index
                 )
-                (db
-                    |> Dict.Any.insert
-                        Id.toString
-                        id
-                        new
-                )
+                (Dict.Any.insert Id.toString id new db)
 
 
 insertMany : Config comparable index a -> List ( Id.Id a, a ) -> Database index a -> Database index a
