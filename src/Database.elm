@@ -1,22 +1,25 @@
 module Database exposing
-    ( Database, empty, codec
+    ( Database, empty
     , Config
-    , documentById, documentsByIndex, idsByIndex, documents
+    , documents, documentById, documentsByIndex, idsByIndex
     , insert, insertMany
     , remove, removeMany
+    , codec
     )
 
 {-|
 
-@docs Database, empty, codec
+@docs Database, empty
 
 @docs Config
 
-@docs documentById, documentsByIndex, idsByIndex, documents
+@docs documents, documentById, documentsByIndex, idsByIndex
 
 @docs insert, insertMany
 
 @docs remove, removeMany
+
+@docs codec
 
 -}
 
