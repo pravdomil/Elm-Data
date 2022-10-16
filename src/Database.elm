@@ -151,6 +151,18 @@ removeMany config ids a =
 --
 
 
+codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database index a)
+codec config a =
+    Codec.list (Codec.tuple Id.codec a)
+        |> Codec.map
+            (\x -> x |> documents |> Dict.Any.toList)
+            (\x -> empty |> insertMany config x)
+
+
+
+--
+
+
 removeIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
 removeIndexForId config id a index =
     config.toIndexes a
@@ -159,15 +171,3 @@ removeIndexForId config id a index =
                 Dict.Any.remove (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) acc
             )
             index
-
-
-
---
-
-
-codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database index a)
-codec config a =
-    Codec.list (Codec.tuple Id.codec a)
-        |> Codec.map
-            (\x -> x |> documents |> Dict.Any.toList)
-            (\x -> empty |> insertMany config x)
