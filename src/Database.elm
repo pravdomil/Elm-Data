@@ -69,13 +69,13 @@ documentsByIndex config index a =
 idsByIndex : Config comparable index a -> index -> Database index a -> List (Id.Id a)
 idsByIndex config a (Database index _) =
     let
-        index__ : comparable
-        index__ =
+        a_ : comparable
+        a_ =
             config.indexToComparable a
 
         toOrder : ( index, Id.Id a ) -> Order
         toOrder ( i, _ ) =
-            compare index__ (config.indexToComparable i)
+            compare a_ (config.indexToComparable i)
     in
     index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
 
