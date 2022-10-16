@@ -281,7 +281,7 @@ imageLoaded config flags result model =
                 | image = Err (JavaScriptError b)
               }
             , logMessage message
-                |> Task.Extra.andAlwaysThen (\_ -> Process.Extra.exit 1)
+                |> Task.Extra.andAlwaysThen (\_ -> Process.Extra.softExit)
                 |> Task.attempt (\_ -> NothingHappened)
             )
 
