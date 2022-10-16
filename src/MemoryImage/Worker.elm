@@ -228,35 +228,46 @@ load flags model =
 imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
 imageLoaded config flags result model =
     let
-        toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle )
+        toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle, SaveMode )
         toImage ( content, handle ) =
             (case content of
                 "" ->
-                    Ok (config.init flags Nothing)
+                    Ok Nothing
 
                 _ ->
                     MemoryImage.FileImage.fromString config.fileImageConfig content
                         |> Result.mapError JavaScript.DecodeError
                         |> Result.map
                             (\x ->
-                                config.init flags
+                                Just
                                     (x
                                         |> MemoryImage.FileImage.image config.update
                                         |> config.mapRunningState (\_ -> RunningState.Running)
-                                        |> Just
                                     )
                             )
             )
-                |> Result.map (\x -> ( x, handle ))
+                |> Result.map
+                    (\x ->
+                        ( config.init flags x
+                        , handle
+                        , case x of
+                            Just _ ->
+                                SaveMessages
+
+                            Nothing ->
+                                SaveSnapshot
+                        )
+                    )
     in
     case result |> Result.andThen toImage of
-        Ok ( a, handle ) ->
+        Ok ( a, handle, saveMode ) ->
             let
                 ( image_, cmd ) =
                     replayMessages config (List.reverse model.saveQueue) a
             in
             ( { model
                 | image = Ok { image = image_, handle = Ok handle }
+                , saveMode = saveMode
               }
             , cmd |> Cmd.map MessageReceived
             )
