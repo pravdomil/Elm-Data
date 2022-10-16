@@ -8,7 +8,6 @@ import Platform.Extra
 import Process.Extra
 import RunningState
 import Time
-import Time.Codec
 
 
 main =
@@ -97,7 +96,7 @@ init flags a =
 
 type Msg
     = NothingHappened
-    | LogTime Time.Posix
+    | LogNumber Int
     | ExitRequested
 
 
@@ -107,13 +106,8 @@ update msg model =
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        LogTime b ->
-            let
-                message : String
-                message =
-                    String.fromInt (b |> Time.posixToMillis |> (\x -> modBy 1000 (x // 1000)))
-            in
-            ( { model | messages = message :: model.messages }
+        LogNumber b ->
+            ( { model | messages = String.fromInt b :: model.messages }
             , Cmd.none
             )
 
@@ -131,7 +125,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.state of
         RunningState.Running ->
-            Time.every 1000 LogTime
+            Time.every 1000 (\x -> LogNumber (x |> Time.posixToMillis |> (\x2 -> modBy 1000 (x2 // 1000))))
 
         RunningState.Exiting ->
             Sub.none
@@ -159,14 +153,14 @@ msgCodec =
                         NothingHappened ->
                             fn1
 
-                        LogTime x1 ->
+                        LogNumber x1 ->
                             fn2 x1
 
                         ExitRequested ->
                             fn3
                 )
                 |> Codec.variant0 NothingHappened
-                |> Codec.variant1 LogTime Time.Codec.posix
+                |> Codec.variant1 LogNumber Codec.int
                 |> Codec.variant0 ExitRequested
                 |> Codec.buildCustom
         )
