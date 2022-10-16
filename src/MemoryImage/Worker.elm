@@ -159,7 +159,7 @@ type Msg msg
     | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
-    | SnapshotSaved (Result JavaScript.Error ())
+    | SnapshotSaved (Result JavaScript.Error FileSystem.Handle.Handle)
     | RecoverFromSaveError
     | DayElapsed
     | BeforeExit
@@ -390,14 +390,32 @@ saveSnapshot config model =
                         data =
                             MemoryImage.FileImage.create [] a.image
                                 |> MemoryImage.FileImage.toString config.fileImageConfig
+
+                        tmpPath : FileSystem.Path
+                        tmpPath =
+                            model.imagePath
+                                |> FileSystem.pathToString
+                                |> (\x -> x ++ ".tmp")
+                                |> FileSystem.stringToPath
                     in
                     ( { model
                         | image = Ok { a | handle = Err handle }
                         , saveQueue = []
                         , saveMode = SaveMessages
                       }
-                    , FileSystem.Handle.truncate handle
-                        |> Task.andThen (\_ -> FileSystem.Handle.write data handle)
+                    , FileSystem.Handle.open fileMode tmpPath
+                        |> Task.andThen
+                            (\x ->
+                                FileSystem.Handle.write data x
+                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.imagePath)
+                                    |> Task.andThen (\() -> FileSystem.Handle.close handle)
+                                    |> Task.onError
+                                        (\x2 ->
+                                            FileSystem.Handle.close x
+                                                |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
+                                        )
+                                    |> Task.map (\() -> x)
+                            )
                         |> Task.attempt SnapshotSaved
                     )
 
@@ -431,10 +449,10 @@ messageSaved result model =
                 |> Platform.Extra.andThen (log message)
 
 
-snapshotSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+snapshotSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
 snapshotSaved result model =
     case result of
-        Ok () ->
+        Ok handle ->
             let
                 message : LogMessage.LogMessage
                 message =
@@ -443,7 +461,17 @@ snapshotSaved result model =
                         "Snapshot saved."
                         Nothing
             in
-            freeHandle model
+            (case model.image of
+                Ok a ->
+                    ( { model
+                        | image = Ok { a | handle = Ok handle }
+                      }
+                    , Cmd.none
+                    )
+
+                Err _ ->
+                    Platform.Extra.noOperation model
+            )
                 |> Platform.Extra.andThen (log message)
 
         Err b ->
