@@ -1,6 +1,6 @@
 module MemoryImage.Worker exposing
     ( Image, image
-    , Config, DailySave(..), worker
+    , Config, worker
     , Msg, init, update, updateByMessage, subscriptions
     )
 
@@ -8,7 +8,7 @@ module MemoryImage.Worker exposing
 
 @docs Image, image
 
-@docs Config, DailySave, worker
+@docs Config, worker
 
 @docs Msg, init, update, updateByMessage, subscriptions
 
@@ -26,6 +26,7 @@ import MemoryImage.FileImage
 import Platform.Extra
 import Process
 import Process.Extra
+import RunningState
 import Task
 import Task.Extra
 import Time
@@ -54,17 +55,8 @@ type alias Config msg a =
 
     --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
-    , toDailySave : a -> DailySave
+    , toRunningState : a -> RunningState.RunningState
     }
-
-
-
---
-
-
-type DailySave
-    = DailySave
-    | NoDailySave
 
 
 
@@ -454,11 +446,11 @@ subscriptions config (Image a) =
     case a.image of
         Ok b ->
             Sub.batch
-                [ case config.toDailySave b.image of
-                    DailySave ->
+                [ case config.toRunningState b.image of
+                    RunningState.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-                    NoDailySave ->
+                    RunningState.Exiting ->
                         Sub.none
                 , config.subscriptions b.image
                     |> Sub.map MessageReceived
