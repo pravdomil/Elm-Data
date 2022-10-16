@@ -153,21 +153,8 @@ remove config id (Database index db) =
     case db |> Dict.Any.get Id.toString id of
         Just old ->
             Database
-                (config.toIndexes old
-                    |> List.foldl
-                        (\x acc ->
-                            acc
-                                |> Dict.Any.remove
-                                    (Tuple.mapBoth config.indexToComparable Id.toString)
-                                    ( x, id )
-                        )
-                        index
-                )
-                (db
-                    |> Dict.Any.remove
-                        Id.toString
-                        id
-                )
+                (removeIndexForId config id old index)
+                (Dict.Any.remove Id.toString id db)
 
         Nothing ->
             Database index db
@@ -176,6 +163,20 @@ remove config id (Database index db) =
 removeMany : Config comparable index a -> List (Id.Id a) -> Database index a -> Database index a
 removeMany config ids a =
     ids |> List.foldl (remove config) a
+
+
+
+--
+
+
+removeIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
+removeIndexForId config id a index =
+    config.toIndexes a
+        |> List.foldl
+            (\x acc ->
+                Dict.Any.remove (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) acc
+            )
+            index
 
 
 
