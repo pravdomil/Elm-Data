@@ -77,7 +77,7 @@ init config flags =
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
         , cmd2 |> Cmd.map ImageMessageReceived
-        , Process.Extra.onExitSignal ExitSignalReceived
+        , Process.Extra.onInterruptAndTerminationSignal ExitSignalReceived
         ]
     )
 
