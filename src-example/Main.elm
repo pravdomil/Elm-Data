@@ -67,7 +67,7 @@ init flags a =
         model =
             (case a of
                 Just b ->
-                    { b | state = RunningState.Running }
+                    b
 
                 Nothing ->
                     Model
