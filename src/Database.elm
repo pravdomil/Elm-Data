@@ -56,14 +56,14 @@ type alias Config comparable index a =
 --
 
 
-documentById : Id.Id a -> Database index a -> Maybe ( Id.Id a, a )
+documentById : Id.Id a -> Database index a -> Maybe a
 documentById id a =
-    a |> documents |> Dict.Any.get Id.toString id |> Maybe.map (Tuple.pair id)
+    a |> documents |> Dict.Any.get Id.toString id
 
 
 documentsByIndex : Config comparable index a -> index -> Database index a -> List ( Id.Id a, a )
 documentsByIndex config index a =
-    idsByIndex config index a |> List.filterMap (\x -> documentById x a)
+    idsByIndex config index a |> List.filterMap (\x -> documentById x a |> Maybe.map (Tuple.pair x))
 
 
 idsByIndex : Config comparable index a -> index -> Database index a -> List (Id.Id a)
