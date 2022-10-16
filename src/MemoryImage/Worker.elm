@@ -413,15 +413,15 @@ saveSnapshot config model =
                                 FileSystem.Handle.write data newHandle
                                     |> Task.andThen (\() -> FileSystem.rename tmpPath model.imagePath)
                                     |> Task.Extra.andAlwaysThen
-                                        (\x2 ->
-                                            case x2 of
-                                                Ok x3 ->
+                                        (\x ->
+                                            case x of
+                                                Ok x2 ->
                                                     FileSystem.Handle.close handle
                                                         |> Task.Extra.andAlwaysThen (\_ -> Task.succeed newHandle)
 
-                                                Err x3 ->
+                                                Err x2 ->
                                                     FileSystem.Handle.close newHandle
-                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.fail x3)
+                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
                                         )
                             )
                         |> Task.attempt SnapshotSaved
