@@ -420,7 +420,7 @@ saveSnapshot config model =
                                     |> Task.Extra.andAlwaysThen
                                         (\x ->
                                             case x of
-                                                Ok x2 ->
+                                                Ok () ->
                                                     FileSystem.Handle.close handle
                                                         |> Task.Extra.andAlwaysThen (\_ -> Task.succeed newHandle)
 
