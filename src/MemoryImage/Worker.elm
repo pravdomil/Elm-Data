@@ -286,7 +286,13 @@ imageLoaded config result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Info
-                        "Image loaded."
+                        (case a of
+                            Just _ ->
+                                "Image loaded."
+
+                            Nothing ->
+                                "Image initialized."
+                        )
                         Nothing
             in
             ( { model
