@@ -118,7 +118,7 @@ init config flags =
         (Model
             (Err NoImage)
             (config.flagsToImagePath flags)
-            []
+            [ config.gotFlags flags ]
             SaveMessages
         )
     , Process.Extra.onBeforeExit BeforeExit
@@ -271,7 +271,7 @@ imageLoaded config flags result model =
                             config.init ()
                     , Cmd.none
                     )
-                        |> replayMessages config (config.gotFlags flags :: List.reverse model.saveQueue)
+                        |> replayMessages config (List.reverse model.saveQueue)
 
                 saveMode : SaveMode
                 saveMode =
