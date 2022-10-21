@@ -118,7 +118,7 @@ init config flags =
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load flags >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config flags >> Tuple.mapFirst Image)
 
 
 
@@ -156,7 +156,7 @@ type SaveMode
 
 type Msg a msg
     = NothingHappened
-    | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
+    | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
     | SnapshotSaved (Result JavaScript.Error FileSystem.Handle.Handle)
@@ -205,8 +205,25 @@ updateByMessage config a model =
 --
 
 
-load : Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-load flags model =
+load : Config msg a -> Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+load config flags model =
+    let
+        toImage : String -> Result Json.Decode.Error (Maybe a)
+        toImage b =
+            case b of
+                "" ->
+                    Ok Nothing
+
+                _ ->
+                    MemoryImage.FileImage.fromString config.fileImageConfig b
+                        |> Result.map
+                            (\x ->
+                                x
+                                    |> MemoryImage.FileImage.image config.update
+                                    |> config.mapRunningState (\_ -> RunningState.Running)
+                                    |> Just
+                            )
+    in
     case model.image of
         Err NoImage ->
             ( { model
@@ -216,6 +233,7 @@ load flags model =
                 |> Task.andThen
                     (\handle ->
                         FileSystem.Handle.read handle
+                            |> Task.andThen (toImage >> Task.Extra.fromResult >> Task.mapError JavaScript.DecodeError)
                             |> Task.Extra.andAlwaysThen
                                 (\x ->
                                     case x of
@@ -234,45 +252,22 @@ load flags model =
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 imageLoaded config flags result model =
-    let
-        toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle, SaveMode )
-        toImage ( content, handle ) =
-            (case content of
-                "" ->
-                    Ok Nothing
-
-                _ ->
-                    MemoryImage.FileImage.fromString config.fileImageConfig content
-                        |> Result.mapError JavaScript.DecodeError
-                        |> Result.map
-                            (\x ->
-                                Just
-                                    (x
-                                        |> MemoryImage.FileImage.image config.update
-                                        |> config.mapRunningState (\_ -> RunningState.Running)
-                                    )
-                            )
-            )
-                |> Result.map
-                    (\x ->
-                        ( config.init flags x
-                        , handle
-                        , case x of
-                            Just _ ->
-                                SaveMessages
-
-                            Nothing ->
-                                SaveSnapshot
-                        )
-                    )
-    in
-    case result |> Result.andThen toImage of
-        Ok ( a, handle, saveMode ) ->
+    case result of
+        Ok ( a, handle ) ->
             let
+                saveMode : SaveMode
+                saveMode =
+                    case a of
+                        Just _ ->
+                            SaveMessages
+
+                        Nothing ->
+                            SaveSnapshot
+
                 ( image_, cmd ) =
-                    replayMessages config (List.reverse model.saveQueue) a
+                    a |> config.init flags |> replayMessages config (List.reverse model.saveQueue)
 
                 message : LogMessage.LogMessage
                 message =
