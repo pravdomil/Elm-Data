@@ -301,10 +301,10 @@ imageLoaded config flags result model =
             ( { model
                 | image = Err (JavaScriptError b)
               }
-            , logMessage message
-                |> Task.Extra.andAlwaysThen (\_ -> Process.Extra.softExit)
+            , Process.Extra.softExit
                 |> Task.attempt (\_ -> NothingHappened)
             )
+                |> Platform.Extra.andThen (log message)
 
 
 
