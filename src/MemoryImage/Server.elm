@@ -21,7 +21,7 @@ import Process.Extra
 import RunningState
 
 
-worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg msg)
+worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg a msg)
 worker config =
     Platform.worker
         { init = init config
@@ -75,7 +75,7 @@ type alias Model msg a =
     }
 
 
-init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg msg) )
+init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
     let
         ( server, cmd ) =
@@ -97,13 +97,13 @@ init config flags =
 --
 
 
-type Msg msg
+type Msg a msg
     = ServerMessageReceived Http.Server.Worker.Msg
-    | ImageMessageReceived (MemoryImage.Worker.Msg msg)
+    | ImageMessageReceived (MemoryImage.Worker.Msg a msg)
     | ExitRequested
 
 
-update : Config msg a -> Msg msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 update config msg model =
     case msg of
         ServerMessageReceived b ->
@@ -131,13 +131,13 @@ update config msg model =
 --
 
 
-updateServer : Http.Server.Worker.Msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+updateServer : Http.Server.Worker.Msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateServer msg model =
     Http.Server.Worker.update msg model.server
         |> Tuple.mapBoth (\x -> { model | server = x }) (Cmd.map ServerMessageReceived)
 
 
-closeServer : Model msg a -> ( Model msg a, Cmd (Msg msg) )
+closeServer : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 closeServer model =
     Http.Server.Worker.close model.server
         |> Tuple.mapBoth (\x -> { model | server = x }) (Cmd.map ServerMessageReceived)
@@ -147,13 +147,13 @@ closeServer model =
 --
 
 
-updateImage : Config msg a -> MemoryImage.Worker.Msg msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+updateImage : Config msg a -> MemoryImage.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImage config msg model =
     MemoryImage.Worker.update config.imageConfig msg model.image
         |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
 
 
-updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImageByMessage config msg model =
     MemoryImage.Worker.updateByMessage config.imageConfig msg model.image
         |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
@@ -163,7 +163,7 @@ updateImageByMessage config msg model =
 --
 
 
-subscriptions : Config msg a -> Model msg a -> Sub (Msg msg)
+subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
 subscriptions config model =
     Sub.batch
         [ Http.Server.Worker.subscriptions model.server
