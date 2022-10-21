@@ -258,7 +258,9 @@ imageLoaded config flags result model =
         Ok ( a, handle ) ->
             let
                 ( image_, cmd ) =
-                    a |> config.init flags |> replayMessages config (List.reverse model.saveQueue)
+                    a
+                        |> config.init flags
+                        |> replayMessages config (List.reverse model.saveQueue)
 
                 saveMode : SaveMode
                 saveMode =
