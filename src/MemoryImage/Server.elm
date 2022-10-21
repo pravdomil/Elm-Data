@@ -46,15 +46,16 @@ type alias Config msg a =
 
 defaultConfig :
     MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
-    -> (Json.Decode.Value -> Maybe { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> (() -> { a | state : RunningState.RunningState })
     -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
     -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    -> (Json.Decode.Value -> msg)
     -> (Http.Server.Request -> msg)
     -> msg
     -> Config msg { a | state : RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ requestReceived exitRequested =
+defaultConfig config init_ update_ subscriptions_ flagsReceived requestReceived exitRequested =
     Config
-        (MemoryImage.Worker.defaultConfig config init_ update_ subscriptions_)
+        (MemoryImage.Worker.defaultConfig config init_ update_ subscriptions_ flagsReceived)
         (\x ->
             x
                 |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "serverOptions" ] Json.Decode.string)
