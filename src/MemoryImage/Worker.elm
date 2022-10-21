@@ -86,7 +86,7 @@ defaultConfig config init_ update_ subscriptions_ =
 --
 
 
-worker : Config msg a -> Program Json.Decode.Value (Image msg a) (Msg msg)
+worker : Config msg a -> Program Json.Decode.Value (Image msg a) (Msg a msg)
 worker config =
     Platform.worker
         { init = init config
@@ -107,7 +107,7 @@ type alias Model msg a =
     }
 
 
-init : Config msg a -> Json.Decode.Value -> ( Image msg a, Cmd (Msg msg) )
+init : Config msg a -> Json.Decode.Value -> ( Image msg a, Cmd (Msg a msg) )
 init config flags =
     ( Image
         (Model
@@ -154,7 +154,7 @@ type SaveMode
 --
 
 
-type Msg msg
+type Msg a msg
     = NothingHappened
     | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( String, FileSystem.Handle.Handle ))
     | MessageReceived msg
@@ -165,7 +165,7 @@ type Msg msg
     | BeforeExit
 
 
-update : Config msg a -> Msg msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+update : Config msg a -> Msg a msg -> Image msg a -> ( Image msg a, Cmd (Msg a msg) )
 update config msg (Image model) =
     (case msg of
         NothingHappened ->
@@ -196,7 +196,7 @@ update config msg (Image model) =
         |> Tuple.mapFirst Image
 
 
-updateByMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg msg) )
+updateByMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg a msg) )
 updateByMessage config a model =
     update config (MessageReceived a) model
 
@@ -205,7 +205,7 @@ updateByMessage config a model =
 --
 
 
-load : Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+load : Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 load flags model =
     case model.image of
         Err NoImage ->
@@ -234,7 +234,7 @@ load flags model =
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( String, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 imageLoaded config flags result model =
     let
         toImage : ( String, FileSystem.Handle.Handle ) -> Result JavaScript.Error ( ( a, Cmd msg ), FileSystem.Handle.Handle, SaveMode )
@@ -311,7 +311,7 @@ imageLoaded config flags result model =
 --
 
 
-messageReceived : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+messageReceived : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 messageReceived config msg model =
     (case model.image of
         Ok a ->
@@ -340,7 +340,7 @@ messageReceived config msg model =
 --
 
 
-save : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+save : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 save config model =
     case model.saveMode of
         SaveMessages ->
@@ -350,7 +350,7 @@ save config model =
             saveSnapshot config model
 
 
-saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveMessages config model =
     case model.image of
         Ok a ->
@@ -391,7 +391,7 @@ saveMessages config model =
             Platform.Extra.noOperation model
 
 
-saveSnapshot : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+saveSnapshot : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveSnapshot config model =
     case model.image of
         Ok a ->
@@ -442,7 +442,7 @@ saveSnapshot config model =
             Platform.Extra.noOperation model
 
 
-messageSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+messageSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 messageSaved result model =
     case result of
         Ok () ->
@@ -465,7 +465,7 @@ messageSaved result model =
                 |> Platform.Extra.andThen (log message)
 
 
-snapshotSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+snapshotSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 snapshotSaved result model =
     case result of
         Ok handle ->
@@ -507,7 +507,7 @@ snapshotSaved result model =
                 |> Platform.Extra.andThen (log message)
 
 
-freeHandle : Model msg a -> ( Model msg a, Cmd (Msg msg) )
+freeHandle : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 freeHandle model =
     case model.image of
         Ok a ->
@@ -535,14 +535,14 @@ freeHandle model =
 --
 
 
-setSaveMode : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+setSaveMode : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 setSaveMode a model =
     ( { model | saveMode = a }
     , Cmd.none
     )
 
 
-log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg msg) )
+log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 log a model =
     ( model
     , logMessage a
@@ -554,7 +554,7 @@ log a model =
 --
 
 
-subscriptions : Config msg a -> Image msg a -> Sub (Msg msg)
+subscriptions : Config msg a -> Image msg a -> Sub (Msg a msg)
 subscriptions config (Image a) =
     case a.image of
         Ok b ->
