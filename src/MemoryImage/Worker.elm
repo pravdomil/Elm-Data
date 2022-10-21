@@ -59,7 +59,7 @@ type alias Config msg a =
     , toRunningState : a -> RunningState.RunningState
 
     --
-    , gotFlags : Json.Decode.Value -> msg
+    , flagsReceived : Json.Decode.Value -> msg
     }
 
 
@@ -70,7 +70,7 @@ defaultConfig :
     -> ({ a | state : RunningState.RunningState } -> Sub msg)
     -> (Json.Decode.Value -> msg)
     -> Config msg { a | state : RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ gotFlags =
+defaultConfig config init_ update_ subscriptions_ flagsReceived =
     Config
         config
         init_
@@ -84,7 +84,7 @@ defaultConfig config init_ update_ subscriptions_ gotFlags =
         )
         (\fn x -> { x | state = fn x.state })
         (\x -> x.state)
-        gotFlags
+        flagsReceived
 
 
 
@@ -118,7 +118,7 @@ init config flags =
         (Model
             (Err NoImage)
             (config.flagsToImagePath flags)
-            [ config.gotFlags flags ]
+            [ config.flagsReceived flags ]
             SaveMessages
         )
     , Process.Extra.onBeforeExit BeforeExit
