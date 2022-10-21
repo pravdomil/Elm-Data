@@ -47,6 +47,13 @@ config =
         init
         update
         subscriptions
+        (\x ->
+            FlagsReceived
+                (x
+                    |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int)
+                    |> Result.withDefault 0
+                )
+        )
 
 
 
@@ -59,35 +66,11 @@ type alias Model =
     }
 
 
-init : Json.Decode.Value -> Maybe Model -> ( Model, Cmd Msg )
-init flags a =
-    let
-        model : Model
-        model =
-            (case a of
-                Just b ->
-                    b
-
-                Nothing ->
-                    Model
-                        [ "Welcome." ]
-                        RunningState.Running
-            )
-                |> (\x ->
-                        { x
-                            | messages = ("Running with pid " ++ String.fromInt pid ++ ".") :: x.messages
-                        }
-                   )
-
-        pid : Int
-        pid =
-            flags
-                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int)
-                |> Result.withDefault 0
-    in
-    ( model
-    , Process.Extra.onInterruptAndTerminationSignal ExitRequested
-    )
+init : () -> Model
+init _ =
+    Model
+        [ "Welcome." ]
+        RunningState.Running
 
 
 
@@ -96,6 +79,7 @@ init flags a =
 
 type Msg
     = NothingHappened
+    | FlagsReceived Int
     | LogNumber Int
     | ExitRequested
 
@@ -105,6 +89,13 @@ update msg model =
     case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
+
+        FlagsReceived b ->
+            ( { model
+                | messages = ("Running with PID " ++ String.fromInt b ++ ".") :: model.messages
+              }
+            , Process.Extra.onInterruptAndTerminationSignal ExitRequested
+            )
 
         LogNumber b ->
             ( { model | messages = String.fromInt b :: model.messages }
@@ -148,18 +139,22 @@ msgCodec =
     Codec.lazy
         (\() ->
             Codec.custom
-                (\fn1 fn2 fn3 x ->
+                (\fn1 fn2 fn3 fn4 x ->
                     case x of
                         NothingHappened ->
                             fn1
 
-                        LogNumber x1 ->
+                        FlagsReceived x1 ->
                             fn2 x1
 
+                        LogNumber x1 ->
+                            fn3 x1
+
                         ExitRequested ->
-                            fn3
+                            fn4
                 )
                 |> Codec.variant0 NothingHappened
+                |> Codec.variant1 FlagsReceived Codec.int
                 |> Codec.variant1 LogNumber Codec.int
                 |> Codec.variant0 ExitRequested
                 |> Codec.buildCustom
