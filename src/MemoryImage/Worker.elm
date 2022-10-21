@@ -257,6 +257,9 @@ imageLoaded config flags result model =
     case result of
         Ok ( a, handle ) ->
             let
+                ( image_, cmd ) =
+                    a |> config.init flags |> replayMessages config (List.reverse model.saveQueue)
+
                 saveMode : SaveMode
                 saveMode =
                     case a of
@@ -265,9 +268,6 @@ imageLoaded config flags result model =
 
                         Nothing ->
                             SaveSnapshot
-
-                ( image_, cmd ) =
-                    a |> config.init flags |> replayMessages config (List.reverse model.saveQueue)
 
                 message : LogMessage.LogMessage
                 message =
