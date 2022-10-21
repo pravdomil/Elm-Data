@@ -123,7 +123,7 @@ init config flags =
         )
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config flags >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config >> Tuple.mapFirst Image)
 
 
 
@@ -161,7 +161,7 @@ type SaveMode
 
 type Msg a msg
     = NothingHappened
-    | ImageLoaded Json.Decode.Value (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
+    | ImageLoaded (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
     | SnapshotSaved (Result JavaScript.Error FileSystem.Handle.Handle)
@@ -176,8 +176,8 @@ update config msg (Image model) =
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        ImageLoaded b c ->
-            imageLoaded config b c model
+        ImageLoaded b ->
+            imageLoaded config b model
 
         MessageReceived b ->
             messageReceived config b model
@@ -210,8 +210,8 @@ updateByMessage config a model =
 --
 
 
-load : Config msg a -> Json.Decode.Value -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-load config flags model =
+load : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+load config model =
     let
         toImage : String -> Result Json.Decode.Error (Maybe a)
         toImage b =
@@ -250,15 +250,15 @@ load config flags model =
                                                 |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
                                 )
                     )
-                |> Task.attempt (ImageLoaded flags)
+                |> Task.attempt ImageLoaded
             )
 
         _ ->
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> Json.Decode.Value -> Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-imageLoaded config flags result model =
+imageLoaded : Config msg a -> Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+imageLoaded config result model =
     case result of
         Ok ( a, handle ) ->
             let
