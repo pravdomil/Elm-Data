@@ -49,7 +49,7 @@ type alias Config msg a =
     { fileImageConfig : MemoryImage.FileImage.Config msg a
 
     --
-    , init : Json.Decode.Value -> Maybe a -> ( a, Cmd msg )
+    , init : () -> a
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
 
@@ -57,16 +57,20 @@ type alias Config msg a =
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
     , mapRunningState : (RunningState.RunningState -> RunningState.RunningState) -> a -> a
     , toRunningState : a -> RunningState.RunningState
+
+    --
+    , gotFlags : Json.Decode.Value -> msg
     }
 
 
 defaultConfig :
     MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
-    -> (Json.Decode.Value -> Maybe { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
+    -> (() -> { a | state : RunningState.RunningState })
     -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
     -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    -> (Json.Decode.Value -> msg)
     -> Config msg { a | state : RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ =
+defaultConfig config init_ update_ subscriptions_ gotFlags =
     Config
         config
         init_
@@ -80,6 +84,7 @@ defaultConfig config init_ update_ subscriptions_ =
         )
         (\fn x -> { x | state = fn x.state })
         (\x -> x.state)
+        gotFlags
 
 
 
@@ -258,9 +263,15 @@ imageLoaded config flags result model =
         Ok ( a, handle ) ->
             let
                 ( image_, cmd ) =
-                    a
-                        |> config.init flags
-                        |> replayMessages config (List.reverse model.saveQueue)
+                    ( case a of
+                        Just b ->
+                            b
+
+                        Nothing ->
+                            config.init ()
+                    , Cmd.none
+                    )
+                        |> replayMessages config (config.gotFlags flags :: List.reverse model.saveQueue)
 
                 saveMode : SaveMode
                 saveMode =
