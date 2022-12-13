@@ -21,7 +21,7 @@ import Task
 generate : Task.Task x (Id.Id a)
 generate =
     JavaScript.run
-        "(function() { var a = new Int32Array(5); (typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(a); return Array.from(a) })()"
+        "Array.from((typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(new Int32Array(5)))"
         Json.Encode.null
         (Json.Decode.map5
             fromIntegers
