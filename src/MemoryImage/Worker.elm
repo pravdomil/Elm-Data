@@ -286,12 +286,13 @@ imageLoaded config result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Info
+                        "Memory Image"
                         (case a of
                             Just _ ->
-                                "Image loaded."
+                                "Image was loaded."
 
                             Nothing ->
-                                "Image initialized."
+                                "Image was initialized."
                         )
                         Nothing
             in
@@ -309,6 +310,7 @@ imageLoaded config result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Error
+                        "Memory Image"
                         "Cannot load image."
                         (Just (LogMessage.JavaScriptError b))
             in
@@ -468,6 +470,7 @@ messageSaved result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Error
+                        "Memory Image"
                         "Cannot save messages."
                         (Just (LogMessage.JavaScriptError b))
             in
@@ -488,6 +491,7 @@ snapshotSaved result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Info
+                        "Memory Image"
                         "Snapshot saved."
                         Nothing
             in
@@ -510,6 +514,7 @@ snapshotSaved result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Error
+                        "Memory Image"
                         "Cannot save snapshot."
                         (Just (LogMessage.JavaScriptError b))
             in
