@@ -8,6 +8,7 @@ import Json.Decode
 
 type alias LogMessage =
     { type_ : Type
+    , author : String
     , message : String
     , detail : Maybe Detail
     }
@@ -38,8 +39,9 @@ type Detail
 
 codec : Codec.Codec LogMessage
 codec =
-    Codec.record (\x1 x2 x3 -> { type_ = x1, message = x2, detail = x3 })
+    Codec.record (\x1 x2 x3 x4 -> { type_ = x1, author = x2, message = x3, detail = x4 })
         |> Codec.field .type_ typeCodec
+        |> Codec.field .author Codec.string
         |> Codec.field .message Codec.string
         |> Codec.field .detail (Codec.maybe detailCodec)
         |> Codec.buildRecord
