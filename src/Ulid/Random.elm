@@ -22,7 +22,7 @@ generate =
         randomness : Task.Task x ( Int, Int, Int )
         randomness =
             JavaScript.run
-                "Array.from((typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(new Int32Array(3)))"
+                "Array.from((typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(new Uint32Array(3)))"
                 Json.Encode.null
                 decoder
                 |> Task.onError
