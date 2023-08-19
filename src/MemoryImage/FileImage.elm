@@ -46,7 +46,7 @@ image updateFn (FileImage messages a) =
 
 toString : Codec.Codec a -> Codec.Codec msg -> FileImage msg a -> String
 toString codecA codecMsg (FileImage messages a) =
-    messages
-        |> List.map (Codec.encodeToString 0 codecMsg)
-        |> (::) (Codec.encodeToString 0 codecA a)
-        |> String.join "\n"
+    String.join "\n"
+        (Codec.encodeToString 0 codecA a
+            :: List.map (Codec.encodeToString 0 codecMsg) messages
+        )
