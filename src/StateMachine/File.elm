@@ -9,7 +9,7 @@ import Result.Extra
 {-| Representation of state machine JSONL file.
 
   - first line is the initial state
-  - the rest of the lines are messages.
+  - the rest of the lines are messages
 
 -}
 type File msg a
