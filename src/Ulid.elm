@@ -1,4 +1,4 @@
-module Ulid exposing (Ulid, codec, toString)
+module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toString)
 
 import Bitwise
 import Codec
@@ -22,12 +22,24 @@ type Ulid a
     = Ulid String
 
 
-fromTimeAndRandomness : Time.Posix -> Int -> Int -> Ulid
-fromTimeAndRandomness timestamp random1 random2 =
+fromTimeAndRandomness : Time.Posix -> ( Int, Int, Int ) -> Ulid a
+fromTimeAndRandomness time ( random1, random2, random3 ) =
+    let
+        encode20bits : Int -> String
+        encode20bits b =
+            String.padLeft 4 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x000FFFFF b)))
+
+        encode30bits : Int -> String
+        encode30bits b =
+            String.padLeft 6 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x3FFFFFFF b)))
+    in
     Ulid
-        (String.padLeft 10 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x0000FFFFFFFFFFFF (Time.posixToMillis timestamp))))
-            ++ String.padLeft 8 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x000000FFFFFFFFFF random1)))
-            ++ String.padLeft 8 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x000000FFFFFFFFFF random2)))
+        (encode30bits (Bitwise.shiftRightBy 20 (Time.posixToMillis time))
+            ++ encode20bits (Time.posixToMillis time)
+            --
+            ++ encode30bits random1
+            ++ encode30bits random2
+            ++ encode20bits random3
         )
 
 
