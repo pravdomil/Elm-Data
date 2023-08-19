@@ -23,10 +23,10 @@ import Json.Decode
 import Json.Encode
 import LogMessage
 import MemoryImage.FileImage
+import MemoryImage.RunningState
 import Platform.Extra
 import Process
 import Process.Extra
-import RunningState
 import Task
 import Task.Extra
 import Time
@@ -55,8 +55,8 @@ type alias Config msg a =
 
     --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
-    , mapRunningState : (RunningState.RunningState -> RunningState.RunningState) -> a -> a
-    , toRunningState : a -> RunningState.RunningState
+    , mapRunningState : (MemoryImage.RunningState.RunningState -> MemoryImage.RunningState.RunningState) -> a -> a
+    , toRunningState : a -> MemoryImage.RunningState.RunningState
 
     --
     , flagsReceived : Json.Decode.Value -> msg
@@ -64,12 +64,12 @@ type alias Config msg a =
 
 
 defaultConfig :
-    MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
-    -> (() -> { a | state : RunningState.RunningState })
-    -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
-    -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    MemoryImage.FileImage.Config msg { a | state : MemoryImage.RunningState.RunningState }
+    -> (() -> { a | state : MemoryImage.RunningState.RunningState })
+    -> (msg -> { a | state : MemoryImage.RunningState.RunningState } -> ( { a | state : MemoryImage.RunningState.RunningState }, Cmd msg ))
+    -> ({ a | state : MemoryImage.RunningState.RunningState } -> Sub msg)
     -> (Json.Decode.Value -> msg)
-    -> Config msg { a | state : RunningState.RunningState }
+    -> Config msg { a | state : MemoryImage.RunningState.RunningState }
 defaultConfig config init_ update_ subscriptions_ flagsReceived =
     Config
         config
@@ -225,7 +225,7 @@ load config model =
                             (\x ->
                                 x
                                     |> MemoryImage.FileImage.image config.update
-                                    |> config.mapRunningState (\_ -> RunningState.Running)
+                                    |> config.mapRunningState (\_ -> MemoryImage.RunningState.Running)
                                     |> Just
                             )
     in
@@ -579,10 +579,10 @@ subscriptions config (Image a) =
         Ok b ->
             Sub.batch
                 [ case config.toRunningState b.image of
-                    RunningState.Running ->
+                    MemoryImage.RunningState.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-                    RunningState.Exiting ->
+                    MemoryImage.RunningState.Exiting ->
                         Sub.none
                 , config.subscriptions b.image
                     |> Sub.map MessageReceived
