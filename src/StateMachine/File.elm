@@ -6,7 +6,7 @@ import Json.Encode
 import Result.Extra
 
 
-{-| State machine JSONL file.
+{-| Representation of state machine JSONL file.
 
   - first line is the initial state
   - the rest of the lines are messages.
