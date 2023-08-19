@@ -1,4 +1,4 @@
-module StateMachine.File exposing (FileImage, create, fromString, image, toString)
+module StateMachine.File exposing (File, create, fromString, image, toString)
 
 import Codec
 import Json.Decode
@@ -12,16 +12,16 @@ import Result.Extra
   - the rest of the lines are messages.
 
 -}
-type FileImage msg a
-    = FileImage (List msg) a
+type File msg a
+    = File (List msg) a
 
 
-create : List msg -> a -> FileImage msg a
+create : List msg -> a -> File msg a
 create =
-    FileImage
+    File
 
 
-fromString : Codec.Codec a -> Codec.Codec msg -> String -> Result Json.Decode.Error (FileImage msg a)
+fromString : Codec.Codec a -> Codec.Codec msg -> String -> Result Json.Decode.Error (File msg a)
 fromString codecA codecMsg a =
     case String.split "\n" a of
         [] ->
@@ -29,7 +29,7 @@ fromString codecA codecMsg a =
 
         first :: rest ->
             Result.map2
-                FileImage
+                File
                 (rest
                     |> List.map (Codec.decodeString codecMsg)
                     |> Result.Extra.sequence
@@ -39,14 +39,14 @@ fromString codecA codecMsg a =
                 )
 
 
-image : (msg -> a -> ( a, Cmd msg )) -> FileImage msg a -> a
-image updateFn (FileImage messages a) =
+image : (msg -> a -> ( a, Cmd msg )) -> File msg a -> a
+image updateFn (File messages a) =
     messages
         |> List.foldl (\msg x -> updateFn msg x |> Tuple.first) a
 
 
-toString : Codec.Codec a -> Codec.Codec msg -> FileImage msg a -> String
-toString codecA codecMsg (FileImage messages a) =
+toString : Codec.Codec a -> Codec.Codec msg -> File msg a -> String
+toString codecA codecMsg (File messages a) =
     String.join "\n"
         (Codec.encodeToString 0 codecA a
             :: List.map (Codec.encodeToString 0 codecMsg) messages
