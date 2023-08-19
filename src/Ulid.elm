@@ -1,4 +1,4 @@
-module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toString)
+module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toAny, toString)
 
 import Bitwise
 import Codec
@@ -46,6 +46,11 @@ fromTimeAndRandomness time ( random1, random2, random3 ) =
 toString : Ulid a -> String
 toString (Ulid a) =
     a
+
+
+toAny : Ulid a -> Ulid b
+toAny (Ulid a) =
+    Ulid a
 
 
 codec : Codec.Codec (Ulid a)
