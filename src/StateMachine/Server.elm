@@ -16,7 +16,7 @@ import Http.Server.Worker
 import Json.Decode
 import Platform.Extra
 import Process.Extra
-import StateMachine.FileImage
+import StateMachine.File
 import StateMachine.RunningState
 import StateMachine.Worker
 
@@ -45,7 +45,7 @@ type alias Config msg a =
 
 
 defaultConfig :
-    StateMachine.FileImage.Config msg { a | state : StateMachine.RunningState.RunningState }
+    StateMachine.File.Config msg { a | state : StateMachine.RunningState.RunningState }
     -> (() -> { a | state : StateMachine.RunningState.RunningState })
     -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
     -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)

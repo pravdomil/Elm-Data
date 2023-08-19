@@ -25,7 +25,7 @@ import LogMessage
 import Platform.Extra
 import Process
 import Process.Extra
-import StateMachine.FileImage
+import StateMachine.File
 import StateMachine.RunningState
 import Task
 import Task.Extra
@@ -46,7 +46,7 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { fileImageConfig : StateMachine.FileImage.Config msg a
+    { fileImageConfig : StateMachine.File.Config msg a
 
     --
     , init : () -> a
@@ -64,7 +64,7 @@ type alias Config msg a =
 
 
 defaultConfig :
-    StateMachine.FileImage.Config msg { a | state : StateMachine.RunningState.RunningState }
+    StateMachine.File.Config msg { a | state : StateMachine.RunningState.RunningState }
     -> (() -> { a | state : StateMachine.RunningState.RunningState })
     -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
     -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)
@@ -220,11 +220,11 @@ load config model =
                     Ok Nothing
 
                 _ ->
-                    StateMachine.FileImage.fromString config.fileImageConfig b
+                    StateMachine.File.fromString config.fileImageConfig b
                         |> Result.map
                             (\x ->
                                 x
-                                    |> StateMachine.FileImage.image config.update
+                                    |> StateMachine.File.image config.update
                                     |> config.mapRunningState (\_ -> StateMachine.RunningState.Running)
                                     |> Just
                             )
@@ -416,8 +416,8 @@ saveSnapshot config model =
                     let
                         data : String
                         data =
-                            StateMachine.FileImage.create [] a.image
-                                |> StateMachine.FileImage.toString config.fileImageConfig
+                            StateMachine.File.create [] a.image
+                                |> StateMachine.File.toString config.fileImageConfig
 
                         tmpPath : FileSystem.Path
                         tmpPath =
