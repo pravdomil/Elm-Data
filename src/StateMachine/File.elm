@@ -41,7 +41,7 @@ fromString codecA codecMsg a =
 
 image : (msg -> a -> ( a, Cmd msg )) -> File msg a -> a
 image updateFn (File messages a) =
-    List.foldl (\msg x -> updateFn msg x |> Tuple.first) a messages
+    List.foldl (\msg x -> Tuple.first (updateFn msg x)) a messages
 
 
 toString : Codec.Codec a -> Codec.Codec msg -> File msg a -> String
