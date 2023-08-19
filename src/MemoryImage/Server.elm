@@ -15,10 +15,10 @@ import Http.Server
 import Http.Server.Worker
 import Json.Decode
 import MemoryImage.FileImage
+import MemoryImage.RunningState
 import MemoryImage.Worker
 import Platform.Extra
 import Process.Extra
-import RunningState
 
 
 worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg a msg)
@@ -45,14 +45,14 @@ type alias Config msg a =
 
 
 defaultConfig :
-    MemoryImage.FileImage.Config msg { a | state : RunningState.RunningState }
-    -> (() -> { a | state : RunningState.RunningState })
-    -> (msg -> { a | state : RunningState.RunningState } -> ( { a | state : RunningState.RunningState }, Cmd msg ))
-    -> ({ a | state : RunningState.RunningState } -> Sub msg)
+    MemoryImage.FileImage.Config msg { a | state : MemoryImage.RunningState.RunningState }
+    -> (() -> { a | state : MemoryImage.RunningState.RunningState })
+    -> (msg -> { a | state : MemoryImage.RunningState.RunningState } -> ( { a | state : MemoryImage.RunningState.RunningState }, Cmd msg ))
+    -> ({ a | state : MemoryImage.RunningState.RunningState } -> Sub msg)
     -> (Json.Decode.Value -> msg)
     -> (Http.Server.Request -> msg)
     -> msg
-    -> Config msg { a | state : RunningState.RunningState }
+    -> Config msg { a | state : MemoryImage.RunningState.RunningState }
 defaultConfig config init_ update_ subscriptions_ flagsReceived requestReceived exitRequested =
     Config
         (MemoryImage.Worker.defaultConfig config init_ update_ subscriptions_ flagsReceived)
