@@ -18,7 +18,7 @@ import Time
 <https://github.com/ulid/spec>
 
 -}
-type Ulid
+type Ulid a
     = Ulid String
 
 
