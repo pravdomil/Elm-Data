@@ -31,12 +31,12 @@ fromTimeAndRandomness timestamp random1 random2 =
         )
 
 
-toString : Ulid -> String
+toString : Ulid a -> String
 toString (Ulid a) =
     a
 
 
-codec : Codec.Codec Ulid
+codec : Codec.Codec (Ulid a)
 codec =
     Codec.custom
         (\fn1 x ->
