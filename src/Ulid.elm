@@ -55,11 +55,4 @@ toAny (Ulid a) =
 
 codec : Codec.Codec (Ulid a)
 codec =
-    Codec.custom
-        (\fn1 x ->
-            case x of
-                Ulid x1 ->
-                    fn1 x1
-        )
-        |> Codec.variant1 Ulid Codec.string
-        |> Codec.buildCustom
+    Codec.map toString Ulid Codec.string
