@@ -1,5 +1,6 @@
-module MemoryImage.FileImage exposing (Config, FileImage, create, fromString, image, toString)
+module MemoryImage.FileImage exposing (FileImage, create, fromString, image, toString)
 
+import Codec
 import Json.Decode
 import Json.Encode
 import Result.Extra
@@ -19,8 +20,8 @@ create =
     FileImage
 
 
-fromString : Config msg a -> String -> Result Json.Decode.Error (FileImage msg a)
-fromString config a =
+fromString : Codec.Codec a -> Codec.Codec msg -> String -> Result Json.Decode.Error (FileImage msg a)
+fromString codecA codecMsg a =
     case String.split "\n" a of
         [] ->
             Err (Json.Decode.Failure "Cannot decode image." (Json.Encode.string a))
@@ -29,11 +30,11 @@ fromString config a =
             Result.map2
                 FileImage
                 (rest
-                    |> List.map (Json.Decode.decodeString config.msgDecoder)
+                    |> List.map (Codec.decodeString codecMsg)
                     |> Result.Extra.sequence
                 )
                 (first
-                    |> Json.Decode.decodeString config.decoder
+                    |> Codec.decodeString codecA
                 )
 
 
@@ -43,23 +44,9 @@ image updateFn (FileImage messages a) =
         |> List.foldl (\msg x -> updateFn msg x |> Tuple.first) a
 
 
-toString : Config msg a -> FileImage msg a -> String
-toString config (FileImage messages a) =
+toString : Codec.Codec a -> Codec.Codec msg -> FileImage msg a -> String
+toString codecA codecMsg (FileImage messages a) =
     messages
-        |> List.map (config.msgEncoder >> Json.Encode.encode 0)
-        |> (::) (Json.Encode.encode 0 (config.encoder a))
+        |> List.map (Codec.encodeToString 0 codecMsg)
+        |> (::) (Codec.encodeToString 0 codecA a)
         |> String.join "\n"
-
-
-
---
-
-
-type alias Config msg a =
-    { encoder : a -> Json.Decode.Value
-    , decoder : Json.Decode.Decoder a
-
-    --
-    , msgEncoder : msg -> Json.Decode.Value
-    , msgDecoder : Json.Decode.Decoder msg
-    }
