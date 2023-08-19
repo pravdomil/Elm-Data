@@ -6,9 +6,10 @@ import Json.Encode
 import Result.Extra
 
 
-{-| Memory image file format.
+{-| State machine JSONL file.
 
-It is a JSONL format where first line is the image and the rest of the lines are messages.
+  - first line is the initial state
+  - the rest of the lines are messages.
 
 -}
 type FileImage msg a
