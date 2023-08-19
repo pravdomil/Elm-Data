@@ -1,4 +1,4 @@
-module StateMachine.File exposing (File, create, fromString, image, toString)
+module StateMachine.File exposing (File, create, fromString, state, toString)
 
 import Codec
 import Json.Decode
@@ -39,8 +39,8 @@ fromString codecA codecMsg a =
                 )
 
 
-image : (msg -> a -> ( a, Cmd msg )) -> File msg a -> a
-image updateFn (File messages a) =
+state : (msg -> a -> ( a, Cmd msg )) -> File msg a -> a
+state updateFn (File messages a) =
     List.foldl (\msg x -> Tuple.first (updateFn msg x)) a messages
 
 

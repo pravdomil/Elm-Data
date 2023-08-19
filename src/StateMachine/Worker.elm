@@ -224,7 +224,7 @@ load config model =
                         |> Result.map
                             (\x ->
                                 x
-                                    |> StateMachine.File.image config.update
+                                    |> StateMachine.File.state config.update
                                     |> config.mapRunningState (\_ -> StateMachine.RunningState.Running)
                                     |> Just
                             )
