@@ -34,7 +34,7 @@ fromTimeAndRandomness time ( random1, random2, random3 ) =
             String.padLeft 6 '0' (Result.withDefault "" (Crockford.encode (Bitwise.and 0x3FFFFFFF b)))
     in
     Ulid
-        (encode30bits (Bitwise.shiftRightBy 20 (Time.posixToMillis time))
+        (encode30bits (Time.posixToMillis time // 0x00100000)
             ++ encode20bits (Time.posixToMillis time)
             --
             ++ encode30bits random1
