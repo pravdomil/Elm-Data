@@ -30,13 +30,8 @@ fromString codecA codecMsg a =
         first :: rest ->
             Result.map2
                 File
-                (rest
-                    |> List.map (Codec.decodeString codecMsg)
-                    |> Result.Extra.sequence
-                )
-                (first
-                    |> Codec.decodeString codecA
-                )
+                (Result.Extra.sequence (List.map (Codec.decodeString codecMsg) rest))
+                (Codec.decodeString codecA first)
 
 
 state : (msg -> a -> ( a, Cmd msg )) -> File msg a -> a
