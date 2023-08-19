@@ -1,4 +1,4 @@
-module MemoryImage.FileImage exposing (FileImage, create, fromString, image, toString)
+module StateMachine.FileImage exposing (FileImage, create, fromString, image, toString)
 
 import Codec
 import Json.Decode

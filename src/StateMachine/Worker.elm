@@ -1,4 +1,4 @@
-module MemoryImage.Worker exposing
+module StateMachine.Worker exposing
     ( Image, image
     , Config, defaultConfig, worker
     , Msg, init, update, updateByMessage, subscriptions
@@ -22,11 +22,11 @@ import JavaScript
 import Json.Decode
 import Json.Encode
 import LogMessage
-import MemoryImage.FileImage
-import MemoryImage.RunningState
 import Platform.Extra
 import Process
 import Process.Extra
+import StateMachine.FileImage
+import StateMachine.RunningState
 import Task
 import Task.Extra
 import Time
@@ -46,7 +46,7 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { fileImageConfig : MemoryImage.FileImage.Config msg a
+    { fileImageConfig : StateMachine.FileImage.Config msg a
 
     --
     , init : () -> a
@@ -55,8 +55,8 @@ type alias Config msg a =
 
     --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
-    , mapRunningState : (MemoryImage.RunningState.RunningState -> MemoryImage.RunningState.RunningState) -> a -> a
-    , toRunningState : a -> MemoryImage.RunningState.RunningState
+    , mapRunningState : (StateMachine.RunningState.RunningState -> StateMachine.RunningState.RunningState) -> a -> a
+    , toRunningState : a -> StateMachine.RunningState.RunningState
 
     --
     , flagsReceived : Json.Decode.Value -> msg
@@ -64,12 +64,12 @@ type alias Config msg a =
 
 
 defaultConfig :
-    MemoryImage.FileImage.Config msg { a | state : MemoryImage.RunningState.RunningState }
-    -> (() -> { a | state : MemoryImage.RunningState.RunningState })
-    -> (msg -> { a | state : MemoryImage.RunningState.RunningState } -> ( { a | state : MemoryImage.RunningState.RunningState }, Cmd msg ))
-    -> ({ a | state : MemoryImage.RunningState.RunningState } -> Sub msg)
+    StateMachine.FileImage.Config msg { a | state : StateMachine.RunningState.RunningState }
+    -> (() -> { a | state : StateMachine.RunningState.RunningState })
+    -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
+    -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)
     -> (Json.Decode.Value -> msg)
-    -> Config msg { a | state : MemoryImage.RunningState.RunningState }
+    -> Config msg { a | state : StateMachine.RunningState.RunningState }
 defaultConfig config init_ update_ subscriptions_ flagsReceived =
     Config
         config
@@ -220,12 +220,12 @@ load config model =
                     Ok Nothing
 
                 _ ->
-                    MemoryImage.FileImage.fromString config.fileImageConfig b
+                    StateMachine.FileImage.fromString config.fileImageConfig b
                         |> Result.map
                             (\x ->
                                 x
-                                    |> MemoryImage.FileImage.image config.update
-                                    |> config.mapRunningState (\_ -> MemoryImage.RunningState.Running)
+                                    |> StateMachine.FileImage.image config.update
+                                    |> config.mapRunningState (\_ -> StateMachine.RunningState.Running)
                                     |> Just
                             )
     in
@@ -416,8 +416,8 @@ saveSnapshot config model =
                     let
                         data : String
                         data =
-                            MemoryImage.FileImage.create [] a.image
-                                |> MemoryImage.FileImage.toString config.fileImageConfig
+                            StateMachine.FileImage.create [] a.image
+                                |> StateMachine.FileImage.toString config.fileImageConfig
 
                         tmpPath : FileSystem.Path
                         tmpPath =
@@ -579,10 +579,10 @@ subscriptions config (Image a) =
         Ok b ->
             Sub.batch
                 [ case config.toRunningState b.image of
-                    MemoryImage.RunningState.Running ->
+                    StateMachine.RunningState.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-                    MemoryImage.RunningState.Exiting ->
+                    StateMachine.RunningState.Exiting ->
                         Sub.none
                 , config.subscriptions b.image
                     |> Sub.map MessageReceived

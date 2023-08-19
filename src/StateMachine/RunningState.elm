@@ -1,4 +1,4 @@
-module MemoryImage.RunningState exposing (..)
+module StateMachine.RunningState exposing (..)
 
 import Codec
 
