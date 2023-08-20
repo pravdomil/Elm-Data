@@ -52,13 +52,13 @@ type alias Config comparable index a =
 
 
 documents : Database index a -> Dict.Any.Dict (Id.Id a) a
-documents (Database _ db) =
-    db
+documents (Database _ a) =
+    a
 
 
 documentById : Id.Id a -> Database index a -> Maybe a
 documentById id a =
-    a |> documents |> Dict.Any.get Id.toString id
+    Dict.Any.get Id.toString id (documents a)
 
 
 documentsByIndex : Config comparable index a -> index -> Database index a -> List ( Id.Id a, a )
