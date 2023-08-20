@@ -281,22 +281,16 @@ stateLoaded config result model =
                             )
 
         Err b ->
-            let
-                message : LogMessage.LogMessage
-                message =
-                    LogMessage.LogMessage
-                        LogMessage.Error
-                        "State Machine"
-                        "Cannot load state."
-                        (Just (LogMessage.JavaScriptError b))
-            in
             ( { model
                 | state = Err (JavaScriptError b)
               }
             , Process.Extra.softExit
                 |> Task.attempt (\_ -> NothingHappened)
             )
-                |> Platform.Extra.andThen (log message)
+                |> Platform.Extra.andThen
+                    (\x ->
+                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot load state." (Just (LogMessage.JavaScriptError b))) x
+                    )
 
 
 
