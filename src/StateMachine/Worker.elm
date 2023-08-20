@@ -352,7 +352,7 @@ saveMessages config model =
                                 data =
                                     String.join ""
                                         (List.map
-                                            (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImageConfig.msgEncoder x))
+                                            (\x -> "\n" ++ Codec.encodeToString 0 config.msgCodec x)
                                             (List.reverse model.saveQueue)
                                         )
                             in
