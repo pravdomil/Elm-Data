@@ -30,7 +30,7 @@ import Time
 
 
 type alias Config msg a =
-    { init : () -> a
+    { init : () -> ( a, Cmd msg )
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
 
@@ -247,48 +247,50 @@ stateLoaded : Config msg a -> Result JavaScript.Error ( Maybe a, FileSystem.Hand
 stateLoaded config result model =
     case result of
         Ok ( a, handle ) ->
-            let
-                ( image_, cmd ) =
-                    ( case a of
-                        Just b ->
-                            b
+            case a of
+                Just b ->
+                    let
+                        ( image_, cmd ) =
+                            ( b, Cmd.none )
+                                |> replayMessages config (List.reverse model.saveQueue)
 
-                        Nothing ->
-                            config.init ()
-                    , Cmd.none
-                    )
-                        |> replayMessages config (List.reverse model.saveQueue)
-
-                saveMode : SaveMode
-                saveMode =
-                    case a of
-                        Just _ ->
-                            SaveMessages
-
-                        Nothing ->
-                            SaveState
-
-                message : LogMessage.LogMessage
-                message =
-                    LogMessage.LogMessage
-                        LogMessage.Info
-                        "Memory Image"
-                        (case a of
-                            Just _ ->
+                        message : LogMessage.LogMessage
+                        message =
+                            LogMessage.LogMessage
+                                LogMessage.Info
+                                "Memory Image"
                                 "Image was loaded."
+                                Nothing
+                    in
+                    ( { model
+                        | state = Ok { state = image_, handle = Ok handle }
+                        , saveMode = SaveMessages
+                      }
+                    , cmd |> Cmd.map MessageReceived
+                    )
+                        |> Platform.Extra.andThen (log message)
 
-                            Nothing ->
+                Nothing ->
+                    let
+                        ( image_, cmd ) =
+                            config.init ()
+                                |> replayMessages config (List.reverse model.saveQueue)
+
+                        message : LogMessage.LogMessage
+                        message =
+                            LogMessage.LogMessage
+                                LogMessage.Info
+                                "Memory Image"
                                 "Image was initialized."
-                        )
-                        Nothing
-            in
-            ( { model
-                | state = Ok { state = image_, handle = Ok handle }
-                , saveMode = saveMode
-              }
-            , cmd |> Cmd.map MessageReceived
-            )
-                |> Platform.Extra.andThen (log message)
+                                Nothing
+                    in
+                    ( { model
+                        | state = Ok { state = image_, handle = Ok handle }
+                        , saveMode = SaveState
+                      }
+                    , cmd |> Cmd.map MessageReceived
+                    )
+                        |> Platform.Extra.andThen (log message)
 
         Err b ->
             let
