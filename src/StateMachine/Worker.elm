@@ -108,7 +108,9 @@ type StateError a
 
 type SaveMode
     = SaveMessages
-    | SaveState
+    | SaveInitialState
+    | SaveDailyState
+    | SaveStateBecauseOfError
 
 
 
@@ -277,7 +279,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.messageQueue) (config.init ())
                     in
                     ( { model
-                        | state = Ok (State state (Ok handle) SaveState)
+                        | state = Ok (State state (Ok handle) SaveInitialState)
                       }
                     , cmd |> Cmd.map MessageReceived
                     )
@@ -340,7 +342,13 @@ save config model =
                 SaveMessages ->
                     saveMessages config b model
 
-                SaveState ->
+                SaveInitialState ->
+                    saveState config b model
+
+                SaveDailyState ->
+                    saveState config b model
+
+                SaveStateBecauseOfError ->
                     saveState config b model
 
         Err (Exiting b) ->
@@ -384,7 +392,7 @@ messageSaved result model =
             freeHandle model
 
         Err b ->
-            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfError }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
@@ -457,7 +465,7 @@ stateSaved result model =
                     )
 
         Err b ->
-            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfError }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
@@ -493,7 +501,7 @@ freeHandle model =
 
 dayElapsed : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 dayElapsed model =
-    ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
+    ( { model | state = Result.map (\x -> { x | saveMode = SaveDailyState }) model.state }
     , Cmd.none
     )
 
