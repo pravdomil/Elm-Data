@@ -103,7 +103,7 @@ type Error
 
 type SaveMode
     = SaveMessages
-    | SaveSnapshot
+    | SaveState
 
 
 
@@ -159,10 +159,10 @@ update config msg model =
             freeHandle model
 
         DayElapsed ->
-            setSaveMode SaveSnapshot model
+            setSaveMode SaveState model
 
         BeforeExit ->
-            setSaveMode SaveSnapshot model
+            setSaveMode SaveState model
     )
         |> Platform.Extra.andThen (save config)
 
@@ -265,7 +265,7 @@ imageLoaded config result model =
                             SaveMessages
 
                         Nothing ->
-                            SaveSnapshot
+                            SaveState
 
                 message : LogMessage.LogMessage
                 message =
@@ -347,7 +347,7 @@ save config model =
         SaveMessages ->
             saveMessages config model
 
-        SaveSnapshot ->
+        SaveState ->
             saveSnapshot config model
 
 
@@ -463,7 +463,7 @@ messageSaved result model =
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
-                |> Platform.Extra.andThen (setSaveMode SaveSnapshot)
+                |> Platform.Extra.andThen (setSaveMode SaveState)
                 |> Platform.Extra.andThen (log message)
 
 
@@ -507,7 +507,7 @@ snapshotSaved result model =
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
-                |> Platform.Extra.andThen (setSaveMode SaveSnapshot)
+                |> Platform.Extra.andThen (setSaveMode SaveState)
                 |> Platform.Extra.andThen (log message)
 
 
