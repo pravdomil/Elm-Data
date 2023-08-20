@@ -75,7 +75,7 @@ worker config =
 
 type alias Model msg a =
     { filePath : FileSystem.Path
-    , state : Result StateError (StateAndHandle a)
+    , state : Result (StateError a) (StateAndHandle a)
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -95,10 +95,11 @@ type alias StateAndHandle a =
 --
 
 
-type StateError
+type StateError a
     = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
+    | Exiting (StateAndHandle a)
 
 
 
