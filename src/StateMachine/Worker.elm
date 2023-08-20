@@ -141,8 +141,16 @@ init config flags =
         , config.flagsReceived flags
         ]
         SaveMessages
-    , Process.Extra.onBeforeExit ExitRequested
+    , Cmd.none
     )
+        |> Platform.Extra.andThen
+            (\x ->
+                ( x, Process.Extra.onInterruptAndTerminationSignal (MessageReceived (config.lifecycleChanged StateMachine.Lifecycle.Exiting)) )
+            )
+        |> Platform.Extra.andThen
+            (\x ->
+                ( x, Process.Extra.onBeforeExit ExitRequested )
+            )
         |> Platform.Extra.andThen (load config)
 
 
