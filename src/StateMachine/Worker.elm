@@ -441,15 +441,6 @@ stateSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> 
 stateSaved result model =
     case result of
         Ok handle ->
-            let
-                message : LogMessage.LogMessage
-                message =
-                    LogMessage.LogMessage
-                        LogMessage.Info
-                        "Memory Image"
-                        "State saved."
-                        Nothing
-            in
             (case model.state of
                 Ok a ->
                     ( { model
@@ -461,7 +452,10 @@ stateSaved result model =
                 Err _ ->
                     Platform.Extra.noOperation model
             )
-                |> Platform.Extra.andThen (log message)
+                |> Platform.Extra.andThen
+                    (\x ->
+                        log (LogMessage.LogMessage LogMessage.Info "State Machine" "State saved." Nothing) x
+                    )
 
         Err b ->
             ( { model | saveMode = SaveState }
