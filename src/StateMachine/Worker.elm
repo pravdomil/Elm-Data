@@ -70,8 +70,8 @@ worker config =
 
 
 type alias Model msg a =
-    { image : Result Error (ReadyImage a)
-    , imagePath : FileSystem.Path
+    { state : Result Error (ReadyState a)
+    , stateMachineFilePath : FileSystem.Path
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -81,8 +81,8 @@ type alias Model msg a =
 --
 
 
-type alias ReadyImage a =
-    { image : a
+type alias ReadyState a =
+    { state : a
     , handle : Result FileSystem.Handle.Handle FileSystem.Handle.Handle
     }
 
@@ -174,16 +174,16 @@ updateByMessage config a model =
 
 subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
 subscriptions config a =
-    case a.image of
+    case a.state of
         Ok b ->
             Sub.batch
-                [ case config.toLifecycle b.image of
+                [ case config.toLifecycle b.state of
                     StateMachine.Lifecycle.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
                     StateMachine.Lifecycle.Exiting ->
                         Sub.none
-                , config.subscriptions b.image
+                , config.subscriptions b.state
                     |> Sub.map MessageReceived
                 ]
 
@@ -214,12 +214,12 @@ load config model =
                                     |> Just
                             )
     in
-    case model.image of
+    case model.state of
         Err NotLoaded ->
             ( { model
-                | image = Err Loading
+                | state = Err Loading
               }
-            , FileSystem.Handle.open fileMode model.imagePath
+            , FileSystem.Handle.open fileMode model.stateMachineFilePath
                 |> Task.andThen
                     (\handle ->
                         FileSystem.Handle.read handle
@@ -282,7 +282,7 @@ imageLoaded config result model =
                         Nothing
             in
             ( { model
-                | image = Ok { image = image_, handle = Ok handle }
+                | state = Ok { state = image_, handle = Ok handle }
                 , saveMode = saveMode
               }
             , cmd |> Cmd.map MessageReceived
@@ -300,7 +300,7 @@ imageLoaded config result model =
                         (Just (LogMessage.JavaScriptError b))
             in
             ( { model
-                | image = Err (JavaScriptError b)
+                | state = Err (JavaScriptError b)
               }
             , Process.Extra.softExit
                 |> Task.attempt (\_ -> NothingHappened)
@@ -314,14 +314,14 @@ imageLoaded config result model =
 
 messageReceived : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 messageReceived config msg model =
-    (case model.image of
+    (case model.state of
         Ok a ->
             let
                 ( nextImage, cmd ) =
-                    config.update msg a.image
+                    config.update msg a.state
             in
             ( { model
-                | image = Ok { a | image = nextImage }
+                | state = Ok { a | state = nextImage }
               }
             , cmd |> Cmd.map MessageReceived
             )
@@ -353,7 +353,7 @@ save config model =
 
 saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveMessages config model =
-    case model.image of
+    case model.state of
         Ok a ->
             case a.handle of
                 Ok handle ->
@@ -374,7 +374,7 @@ saveMessages config model =
                     case data of
                         Just b ->
                             ( { model
-                                | image = Ok { a | handle = Err handle }
+                                | state = Ok { a | handle = Err handle }
                                 , saveQueue = []
                                 , saveMode = SaveMessages
                               }
@@ -394,25 +394,25 @@ saveMessages config model =
 
 saveSnapshot : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveSnapshot config model =
-    case model.image of
+    case model.state of
         Ok a ->
             case a.handle of
                 Ok handle ->
                     let
                         data : String
                         data =
-                            StateMachine.File.create [] a.image
+                            StateMachine.File.create [] a.state
                                 |> StateMachine.File.toString config.fileImageConfig
 
                         tmpPath : FileSystem.Path
                         tmpPath =
-                            model.imagePath
+                            model.stateMachineFilePath
                                 |> FileSystem.pathToString
                                 |> (\x -> x ++ ".tmp")
                                 |> FileSystem.stringToPath
                     in
                     ( { model
-                        | image = Ok { a | handle = Err handle }
+                        | state = Ok { a | handle = Err handle }
                         , saveQueue = []
                         , saveMode = SaveMessages
                       }
@@ -420,7 +420,7 @@ saveSnapshot config model =
                         |> Task.andThen
                             (\newHandle ->
                                 FileSystem.Handle.write data newHandle
-                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.imagePath)
+                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.stateMachineFilePath)
                                     |> Task.Extra.andAlwaysThen
                                         (\x ->
                                             case x of
@@ -480,10 +480,10 @@ snapshotSaved result model =
                         "Snapshot saved."
                         Nothing
             in
-            (case model.image of
+            (case model.state of
                 Ok a ->
                     ( { model
-                        | image = Ok { a | handle = Ok handle }
+                        | state = Ok { a | handle = Ok handle }
                       }
                     , Cmd.none
                     )
@@ -513,7 +513,7 @@ snapshotSaved result model =
 
 freeHandle : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 freeHandle model =
-    case model.image of
+    case model.state of
         Ok a ->
             let
                 handle : FileSystem.Handle.Handle
@@ -526,7 +526,7 @@ freeHandle model =
                             b
             in
             ( { model
-                | image = Ok { a | handle = Ok handle }
+                | state = Ok { a | handle = Ok handle }
               }
             , Cmd.none
             )
