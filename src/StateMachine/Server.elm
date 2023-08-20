@@ -95,7 +95,7 @@ update config msg =
                         Just c ->
                             case c of
                                 Http.Server.Worker.RequestReceived d ->
-                                    updateImageByMessage config (config.requestReceived d)
+                                    updateStateByMessage config (config.requestReceived d)
 
                         Nothing ->
                             Platform.Extra.noOperation
@@ -131,8 +131,8 @@ updateState config msg model =
         |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
 
-updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-updateImageByMessage config msg model =
+updateStateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+updateStateByMessage config msg model =
     StateMachine.Worker.updateByMessage config.stateMachineConfig msg model.state
         |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
