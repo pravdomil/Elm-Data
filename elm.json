@@ -3,7 +3,6 @@
     "source-directories": [
         "src",
         "src-example",
-        "node_modules/elm-codec/src",
         "node_modules/elm-ffi/src",
         "node_modules/elm-ffi-node/src",
         "node_modules/elm-utils/src"
@@ -24,7 +23,12 @@
         }
     },
     "test-dependencies": {
-        "direct": {},
-        "indirect": {}
+        "direct": {
+            "elm-explorations/test": "2.1.1"
+        },
+        "indirect": {
+            "elm/bytes": "1.0.8",
+            "elm/random": "1.0.0"
+        }
     }
 }
