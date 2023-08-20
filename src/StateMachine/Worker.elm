@@ -1,13 +1,13 @@
 module StateMachine.Worker exposing
     ( Config, flagsToFilePath, worker
-    , Model, Msg(..), init, update, updateByMessage, subscriptions
+    , Model, Msg(..), init, update, subscriptions
     )
 
 {-|
 
 @docs Config, flagsToFilePath, worker
 
-@docs Model, Msg, init, update, updateByMessage, subscriptions
+@docs Model, Msg, init, update, subscriptions
 
 -}
 
@@ -17,7 +17,6 @@ import FileSystem
 import FileSystem.Handle
 import JavaScript
 import Json.Decode
-import Json.Encode
 import LogMessage
 import Platform.Extra
 import Process
@@ -188,11 +187,6 @@ update config msg =
             beforeExitReceived
     )
         >> Platform.Extra.andThen (save config)
-
-
-updateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-updateByMessage config a model =
-    update config (MessageReceived a) model
 
 
 subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
