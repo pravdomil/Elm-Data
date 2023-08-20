@@ -258,8 +258,8 @@ stateLoaded config result model =
                         message =
                             LogMessage.LogMessage
                                 LogMessage.Info
-                                "Memory Image"
-                                "Image was loaded."
+                                "State Machine"
+                                "State was loaded."
                                 Nothing
                     in
                     ( { model
@@ -280,8 +280,8 @@ stateLoaded config result model =
                         message =
                             LogMessage.LogMessage
                                 LogMessage.Info
-                                "Memory Image"
-                                "Image was initialized."
+                                "State Machine"
+                                "State was initialized."
                                 Nothing
                     in
                     ( { model
@@ -298,8 +298,8 @@ stateLoaded config result model =
                 message =
                     LogMessage.LogMessage
                         LogMessage.Error
-                        "Memory Image"
-                        "Cannot load image."
+                        "State Machine"
+                        "Cannot load state."
                         (Just (LogMessage.JavaScriptError b))
             in
             ( { model
