@@ -77,7 +77,6 @@ type alias Model msg a =
     { filePath : FileSystem.Path
     , state : Result (StateError a) (State a)
     , saveQueue : List msg
-    , saveMode : SaveMode
     }
 
 
@@ -88,6 +87,7 @@ type alias Model msg a =
 type alias State a =
     { state : a
     , handle : Result FileSystem.Handle.Handle FileSystem.Handle.Handle
+    , saveMode : SaveMode
     }
 
 
@@ -141,7 +141,6 @@ init config flags =
         [ config.lifecycleChanged StateMachine.Lifecycle.Running
         , config.flagsReceived flags
         ]
-        SaveMessages
     , Cmd.none
     )
         |> Platform.Extra.andThen
@@ -263,8 +262,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) ( b, Cmd.none )
                     in
                     ( { model
-                        | state = Ok (State state (Ok handle))
-                        , saveMode = SaveMessages
+                        | state = Ok (State state (Ok handle) SaveMessages)
                       }
                     , cmd |> Cmd.map MessageReceived
                     )
@@ -279,8 +277,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) (config.init ())
                     in
                     ( { model
-                        | state = Ok (State state (Ok handle))
-                        , saveMode = SaveState
+                        | state = Ok (State state (Ok handle) SaveState)
                       }
                     , cmd |> Cmd.map MessageReceived
                     )
@@ -339,7 +336,7 @@ save : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 save config model =
     case model.state of
         Ok b ->
-            case model.saveMode of
+            case b.saveMode of
                 SaveMessages ->
                     saveMessages config b model
 
@@ -369,9 +366,8 @@ saveMessages config a model =
                                 )
                     in
                     ( { model
-                        | state = Ok { a | handle = Err handle }
+                        | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
                         , saveQueue = []
-                        , saveMode = SaveMessages
                       }
                     , FileSystem.Handle.write data handle
                         |> Task.attempt MessagesSaved
@@ -396,9 +392,8 @@ saveState config a model =
                     FileSystem.stringToPath (FileSystem.pathToString model.filePath ++ ".tmp")
             in
             ( { model
-                | state = Ok { a | handle = Err handle }
+                | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
                 , saveQueue = []
-                , saveMode = SaveMessages
               }
             , FileSystem.Handle.open fileMode tmpPath
                 |> Task.andThen
@@ -431,7 +426,7 @@ messageSaved result model =
             freeHandle model
 
         Err b ->
-            ( { model | saveMode = SaveState }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
@@ -462,7 +457,7 @@ stateSaved result model =
                     )
 
         Err b ->
-            ( { model | saveMode = SaveState }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
@@ -516,7 +511,7 @@ exitRequested model =
 
 setSaveMode : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 setSaveMode a model =
-    ( { model | saveMode = a }
+    ( { model | state = Result.map (\x -> { x | saveMode = a }) model.state }
     , Cmd.none
     )
 
