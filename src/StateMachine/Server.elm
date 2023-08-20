@@ -70,7 +70,7 @@ init config flags =
     ( Model server image
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
-        , cmd2 |> Cmd.map ImageMessageReceived
+        , cmd2 |> Cmd.map StateMessageReceived
         , Process.Extra.onInterruptAndTerminationSignal ExitRequested
         ]
     )
@@ -82,7 +82,7 @@ init config flags =
 
 type Msg a msg
     = ServerMessageReceived Http.Server.Worker.Msg
-    | ImageMessageReceived (StateMachine.Worker.Msg a msg)
+    | StateMessageReceived (StateMachine.Worker.Msg a msg)
     | ExitRequested
 
 
@@ -102,7 +102,7 @@ update config msg model =
                             Platform.Extra.noOperation
                     )
 
-        ImageMessageReceived b ->
+        StateMessageReceived b ->
             updateImage config b model
 
         ExitRequested ->
@@ -133,13 +133,13 @@ closeServer model =
 updateImage : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImage config msg model =
     StateMachine.Worker.update config.stateMachineConfig msg model.state
-        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map ImageMessageReceived)
+        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
 
 updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImageByMessage config msg model =
     StateMachine.Worker.updateByMessage config.stateMachineConfig msg model.state
-        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map ImageMessageReceived)
+        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
 
 
@@ -152,5 +152,5 @@ subscriptions config model =
         [ Http.Server.Worker.subscriptions model.server
             |> Sub.map ServerMessageReceived
         , StateMachine.Worker.subscriptions config.stateMachineConfig model.state
-            |> Sub.map ImageMessageReceived
+            |> Sub.map StateMessageReceived
         ]
