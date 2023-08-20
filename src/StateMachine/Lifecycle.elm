@@ -1,14 +1,14 @@
-module StateMachine.RunningState exposing (..)
+module StateMachine.Lifecycle exposing (..)
 
 import Codec
 
 
-type RunningState
+type Lifecycle
     = Running
     | Exiting
 
 
-codec : Codec.Codec RunningState
+codec : Codec.Codec Lifecycle
 codec =
     Codec.custom
         (\fn1 fn2 x ->

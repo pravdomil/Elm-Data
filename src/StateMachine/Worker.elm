@@ -23,7 +23,7 @@ import Platform.Extra
 import Process
 import Process.Extra
 import StateMachine.File
-import StateMachine.RunningState
+import StateMachine.Lifecycle
 import Task
 import Task.Extra
 import Time
@@ -39,17 +39,17 @@ type alias Config msg a =
     , flagsReceived : Json.Decode.Value -> msg
 
     --
-    , mapRunningState : (StateMachine.RunningState.RunningState -> StateMachine.RunningState.RunningState) -> a -> a
-    , toRunningState : a -> StateMachine.RunningState.RunningState
+    , mapRunningState : (StateMachine.Lifecycle.Lifecycle -> StateMachine.Lifecycle.Lifecycle) -> a -> a
+    , toRunningState : a -> StateMachine.Lifecycle.Lifecycle
     }
 
 
 defaultConfig :
-    (() -> { a | state : StateMachine.RunningState.RunningState })
-    -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
-    -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)
+    (() -> { a | state : StateMachine.Lifecycle.Lifecycle })
+    -> (msg -> { a | state : StateMachine.Lifecycle.Lifecycle } -> ( { a | state : StateMachine.Lifecycle.Lifecycle }, Cmd msg ))
+    -> ({ a | state : StateMachine.Lifecycle.Lifecycle } -> Sub msg)
     -> (Json.Decode.Value -> msg)
-    -> Config msg { a | state : StateMachine.RunningState.RunningState }
+    -> Config msg { a | state : StateMachine.Lifecycle.Lifecycle }
 defaultConfig init_ update_ subscriptions_ flagsReceived =
     Config
         init_
@@ -201,7 +201,7 @@ load config model =
                             (\x ->
                                 x
                                     |> StateMachine.File.state config.update
-                                    |> config.mapRunningState (\_ -> StateMachine.RunningState.Running)
+                                    |> config.mapRunningState (\_ -> StateMachine.Lifecycle.Running)
                                     |> Just
                             )
     in
@@ -555,10 +555,10 @@ subscriptions config a =
         Ok b ->
             Sub.batch
                 [ case config.toRunningState b.image of
-                    StateMachine.RunningState.Running ->
+                    StateMachine.Lifecycle.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
-                    StateMachine.RunningState.Exiting ->
+                    StateMachine.Lifecycle.Exiting ->
                         Sub.none
                 , config.subscriptions b.image
                     |> Sub.map MessageReceived
