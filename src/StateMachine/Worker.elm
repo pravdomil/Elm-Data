@@ -35,6 +35,10 @@ type alias Config msg a =
     , subscriptions : a -> Sub msg
 
     --
+    , codec : Codec.Codec a
+    , msgCodec : Codec.Codec msg
+
+    --
     , flagsToFilePath : Json.Decode.Value -> FileSystem.Path
     , flagsReceived : Json.Decode.Value -> msg
 
@@ -208,7 +212,7 @@ load config model =
                     Ok Nothing
 
                 _ ->
-                    StateMachine.File.fromString config.fileImageConfig b
+                    StateMachine.File.fromString config.codec config.msgCodec b
                         |> Result.map
                             (\x ->
                                 x
