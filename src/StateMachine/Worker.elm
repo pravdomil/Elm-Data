@@ -121,7 +121,7 @@ type Msg a msg
     | RecoverFromSaveError
       --
     | DayElapsed
-    | BeforeExit
+    | ExitRequested
 
 
 
@@ -135,7 +135,7 @@ init config flags =
         (config.flagsToFilePath flags)
         [ config.flagsReceived flags ]
         SaveMessages
-    , Process.Extra.onBeforeExit BeforeExit
+    , Process.Extra.onBeforeExit ExitRequested
     )
         |> Platform.Extra.andThen (load config)
 
@@ -164,7 +164,7 @@ update config msg =
         DayElapsed ->
             setSaveMode SaveState
 
-        BeforeExit ->
+        ExitRequested ->
             setSaveMode SaveState
     )
         >> Platform.Extra.andThen (save config)
