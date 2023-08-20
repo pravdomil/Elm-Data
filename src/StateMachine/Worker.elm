@@ -5,8 +5,6 @@ module StateMachine.Worker exposing
 
 {-|
 
-@docs Image, image
-
 @docs Config, defaultConfig, worker
 
 @docs Msg, init, update, updateByMessage, subscriptions
