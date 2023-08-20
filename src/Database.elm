@@ -125,7 +125,7 @@ remove config id (Database index db) =
 
 removeMany : Config comparable index a -> List (Id.Id a) -> Database index a -> Database index a
 removeMany config ids a =
-    ids |> List.foldl (remove config) a
+    List.foldl (remove config) a ids
 
 
 
