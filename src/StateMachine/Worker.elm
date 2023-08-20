@@ -140,33 +140,33 @@ init config flags =
 
 
 update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-update config msg model =
+update config msg =
     (case msg of
         NothingHappened ->
-            Platform.Extra.noOperation model
+            Platform.Extra.noOperation
 
         StateLoaded b ->
-            stateLoaded config b model
+            stateLoaded config b
 
         MessageReceived b ->
-            messageReceived config b model
+            messageReceived config b
 
         MessagesSaved b ->
-            messageSaved b model
+            messageSaved b
 
         StateSaved b ->
-            stateSaved b model
+            stateSaved b
 
         RecoverFromSaveError ->
-            freeHandle model
+            freeHandle
 
         DayElapsed ->
-            setSaveMode SaveState model
+            setSaveMode SaveState
 
         BeforeExit ->
-            setSaveMode SaveState model
+            setSaveMode SaveState
     )
-        |> Platform.Extra.andThen (save config)
+        >> Platform.Extra.andThen (save config)
 
 
 updateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
