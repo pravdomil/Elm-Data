@@ -128,7 +128,7 @@ type Msg a msg
     | RecoverFromSaveError
       --
     | DayElapsed
-    | ExitRequested
+    | BeforeExitReceived
 
 
 
@@ -151,7 +151,7 @@ init config flags =
             )
         |> Platform.Extra.andThen
             (\x ->
-                ( x, Process.Extra.onBeforeExit ExitRequested )
+                ( x, Process.Extra.onBeforeExit BeforeExitReceived )
             )
         |> Platform.Extra.andThen (load config)
 
@@ -180,8 +180,8 @@ update config msg =
         DayElapsed ->
             dayElapsed
 
-        ExitRequested ->
-            exitRequested
+        BeforeExitReceived ->
+            beforeExitReceived
     )
         >> Platform.Extra.andThen (save config)
 
@@ -509,8 +509,8 @@ dayElapsed model =
     )
 
 
-exitRequested : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-exitRequested model =
+beforeExitReceived : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+beforeExitReceived model =
     ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBeforeExit }) model.state }
     , Cmd.none
     )
