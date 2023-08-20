@@ -180,7 +180,7 @@ update config msg =
             setSaveMode SaveState
 
         ExitRequested ->
-            setSaveMode SaveState
+            exitRequested
     )
         >> Platform.Extra.andThen (save config)
 
@@ -493,6 +493,20 @@ freeHandle model =
             in
             ( { model
                 | state = Ok { a | handle = Ok handle }
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            Platform.Extra.noOperation model
+
+
+exitRequested : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+exitRequested model =
+    case model.state of
+        Ok a ->
+            ( { model
+                | state = Err (Exiting a)
               }
             , Cmd.none
             )
