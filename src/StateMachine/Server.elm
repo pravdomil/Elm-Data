@@ -102,7 +102,7 @@ update config msg model =
                     )
 
         StateMessageReceived b ->
-            updateImage config b model
+            updateState config b model
 
 
 
@@ -125,8 +125,8 @@ closeServer model =
 --
 
 
-updateImage : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-updateImage config msg model =
+updateState : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+updateState config msg model =
     StateMachine.Worker.update config.stateMachineConfig msg model.state
         |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
