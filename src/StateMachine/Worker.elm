@@ -99,7 +99,6 @@ type StateError a
     = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
-    | Exiting (State a)
 
 
 
@@ -111,6 +110,7 @@ type SaveMode
     | SaveInitialState
     | SaveDailyState
     | SaveStateBecauseOfWriteError
+    | SaveStateBeforeExit
 
 
 
@@ -351,8 +351,11 @@ save config model =
                 SaveStateBecauseOfWriteError ->
                     saveState config b model
 
-        Err (Exiting b) ->
-            saveState config b model
+                SaveStateBeforeExit ->
+                    saveState config b model
+
+        Err _ ->
+            Platform.Extra.noOperation model
 
 
 saveMessages : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
@@ -508,16 +511,9 @@ dayElapsed model =
 
 exitRequested : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 exitRequested model =
-    case model.state of
-        Ok a ->
-            ( { model
-                | state = Err (Exiting a)
-              }
-            , Cmd.none
-            )
-
-        Err _ ->
-            Platform.Extra.noOperation model
+    ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBeforeExit }) model.state }
+    , Cmd.none
+    )
 
 
 
