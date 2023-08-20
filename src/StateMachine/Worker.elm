@@ -48,7 +48,7 @@ flagsToFilePath : Json.Decode.Value -> FileSystem.Path
 flagsToFilePath a =
     FileSystem.stringToPath
         (Result.withDefault "state.jsonl"
-            (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) a)
+            (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "stateFilepath" ] Json.Decode.string) a)
         )
 
 
