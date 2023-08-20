@@ -74,8 +74,8 @@ worker config =
 
 
 type alias Model msg a =
-    { state : Result StateError (ReadyState a)
-    , filePath : FileSystem.Path
+    { filePath : FileSystem.Path
+    , state : Result StateError (ReadyState a)
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -135,8 +135,8 @@ type Msg a msg
 init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
     ( Model
-        (Err NotLoaded)
         (config.flagsToFilePath flags)
+        (Err NotLoaded)
         [ config.lifecycleChanged StateMachine.Lifecycle.Running
         , config.flagsReceived flags
         ]
