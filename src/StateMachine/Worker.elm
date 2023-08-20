@@ -76,7 +76,7 @@ worker config =
 type alias Model msg a =
     { filePath : FileSystem.Path
     , state : Result (StateError a) (State a)
-    , saveQueue : List msg
+    , messageQueue : List msg
     }
 
 
@@ -259,7 +259,7 @@ stateLoaded config result model =
                 Just b ->
                     let
                         ( state, cmd ) =
-                            replayMessages config (List.reverse model.saveQueue) ( b, Cmd.none )
+                            replayMessages config (List.reverse model.messageQueue) ( b, Cmd.none )
                     in
                     ( { model
                         | state = Ok (State state (Ok handle) SaveMessages)
@@ -274,7 +274,7 @@ stateLoaded config result model =
                 Nothing ->
                     let
                         ( state, cmd ) =
-                            replayMessages config (List.reverse model.saveQueue) (config.init ())
+                            replayMessages config (List.reverse model.messageQueue) (config.init ())
                     in
                     ( { model
                         | state = Ok (State state (Ok handle) SaveState)
@@ -322,7 +322,7 @@ messageReceived config msg model =
     )
         |> Platform.Extra.andThen
             (\x ->
-                ( { x | saveQueue = msg :: x.saveQueue }
+                ( { x | messageQueue = msg :: x.messageQueue }
                 , Cmd.none
                 )
             )
@@ -351,7 +351,7 @@ saveMessages : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg
 saveMessages config a model =
     case a.handle of
         Ok handle ->
-            case model.saveQueue of
+            case model.messageQueue of
                 [] ->
                     Platform.Extra.noOperation model
 
@@ -362,12 +362,12 @@ saveMessages config a model =
                             String.join ""
                                 (List.map
                                     (\x -> "\n" ++ Codec.encodeToString 0 config.msgCodec x)
-                                    (List.reverse model.saveQueue)
+                                    (List.reverse model.messageQueue)
                                 )
                     in
                     ( { model
                         | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
-                        , saveQueue = []
+                        , messageQueue = []
                       }
                     , FileSystem.Handle.write data handle
                         |> Task.attempt MessagesSaved
@@ -393,7 +393,7 @@ saveState config a model =
             in
             ( { model
                 | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
-                , saveQueue = []
+                , messageQueue = []
               }
             , FileSystem.Handle.open fileMode tmpPath
                 |> Task.andThen
