@@ -146,19 +146,19 @@ codec config a =
 
 insertIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
 insertIndexForId config id a index =
-    config.toIndexes a
-        |> List.foldl
-            (\x acc ->
-                Dict.Any.insert (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) () acc
-            )
-            index
+    List.foldl
+        (\x acc ->
+            Dict.Any.insert (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) () acc
+        )
+        index
+        (config.toIndexes a)
 
 
 removeIndexForId : Config comparable index a -> Id.Id a -> a -> Dict.Any.Dict ( index, Id.Id a ) () -> Dict.Any.Dict ( index, Id.Id a ) ()
 removeIndexForId config id a index =
-    config.toIndexes a
-        |> List.foldl
-            (\x acc ->
-                Dict.Any.remove (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) acc
-            )
-            index
+    List.foldl
+        (\x acc ->
+            Dict.Any.remove (Tuple.mapBoth config.indexToComparable Id.toString) ( x, id ) acc
+        )
+        index
+        (config.toIndexes a)
