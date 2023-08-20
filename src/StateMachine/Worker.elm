@@ -1,6 +1,5 @@
 module StateMachine.Worker exposing
-    ( Image, image
-    , Config, defaultConfig, worker
+    ( Config, defaultConfig, worker
     , Msg, init, update, updateByMessage, subscriptions
     )
 
@@ -30,19 +29,6 @@ import StateMachine.RunningState
 import Task
 import Task.Extra
 import Time
-
-
-type Image msg a
-    = Image (Model msg a)
-
-
-image : Image msg a -> Maybe a
-image (Image a) =
-    a.image |> Result.map .image |> Result.toMaybe
-
-
-
---
 
 
 type alias Config msg a =
@@ -86,7 +72,7 @@ defaultConfig init_ update_ subscriptions_ flagsReceived =
 --
 
 
-worker : Config msg a -> Program Json.Decode.Value (Image msg a) (Msg a msg)
+worker : Config msg a -> Program Json.Decode.Value (Model msg a) (Msg a msg)
 worker config =
     Platform.worker
         { init = init config
@@ -107,18 +93,16 @@ type alias Model msg a =
     }
 
 
-init : Config msg a -> Json.Decode.Value -> ( Image msg a, Cmd (Msg a msg) )
+init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
-    ( Image
-        (Model
-            (Err NoImage)
-            (config.flagsToImagePath flags)
-            [ config.flagsReceived flags ]
-            SaveMessages
-        )
+    ( Model
+        (Err NoImage)
+        (config.flagsToImagePath flags)
+        [ config.flagsReceived flags ]
+        SaveMessages
     , Process.Extra.onBeforeExit BeforeExit
     )
-        |> Platform.Extra.andThen ((\(Image x) -> x) >> load config >> Tuple.mapFirst Image)
+        |> Platform.Extra.andThen (load config)
 
 
 
@@ -165,8 +149,8 @@ type Msg a msg
     | BeforeExit
 
 
-update : Config msg a -> Msg a msg -> Image msg a -> ( Image msg a, Cmd (Msg a msg) )
-update config msg (Image model) =
+update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+update config msg model =
     (case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
@@ -193,10 +177,9 @@ update config msg (Image model) =
             setSaveMode SaveSnapshot model
     )
         |> Platform.Extra.andThen (save config)
-        |> Tuple.mapFirst Image
 
 
-updateByMessage : Config msg a -> msg -> Image msg a -> ( Image msg a, Cmd (Msg a msg) )
+updateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateByMessage config a model =
     update config (MessageReceived a) model
 
@@ -568,8 +551,8 @@ log a model =
 --
 
 
-subscriptions : Config msg a -> Image msg a -> Sub (Msg a msg)
-subscriptions config (Image a) =
+subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
+subscriptions config a =
     case a.image of
         Ok b ->
             Sub.batch
