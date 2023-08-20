@@ -134,10 +134,10 @@ removeMany config ids a =
 
 codec : Config comparable index a -> Codec.Codec a -> Codec.Codec (Database index a)
 codec config a =
-    Codec.list (Codec.tuple Id.codec a)
+    Dict.Any.codec Id.codec a
         |> Codec.map
-            (\x -> x |> documents |> Dict.Any.toList)
-            (\x -> empty |> insertMany config x)
+            (\x -> documents x)
+            (\x -> Database (Dict.Any.foldr (insertIndexForId config) Dict.Any.empty x) x)
 
 
 
