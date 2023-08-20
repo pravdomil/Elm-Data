@@ -574,8 +574,7 @@ replayMessages config messages ( a, cmd ) =
             , cmd_ :: cmds
             )
     in
-    messages
-        |> List.foldl fn ( a, [ cmd ] )
+    List.foldl fn ( a, [ cmd ] ) messages
         |> Tuple.mapSecond Cmd.batch
 
 
