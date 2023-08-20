@@ -39,8 +39,8 @@ type alias Config msg a =
     , flagsReceived : Json.Decode.Value -> msg
 
     --
-    , mapRunningState : (StateMachine.Lifecycle.Lifecycle -> StateMachine.Lifecycle.Lifecycle) -> a -> a
-    , toRunningState : a -> StateMachine.Lifecycle.Lifecycle
+    , toLifecycle : a -> StateMachine.Lifecycle.Lifecycle
+    , lifecycleChanged : StateMachine.Lifecycle.Lifecycle -> msg
     }
 
 
@@ -201,7 +201,7 @@ load config model =
                             (\x ->
                                 x
                                     |> StateMachine.File.state config.update
-                                    |> config.mapRunningState (\_ -> StateMachine.Lifecycle.Running)
+                                    |> config.lifecycleChanged (\_ -> StateMachine.Lifecycle.Running)
                                     |> Just
                             )
     in
@@ -554,7 +554,7 @@ subscriptions config a =
     case a.image of
         Ok b ->
             Sub.batch
-                [ case config.toRunningState b.image of
+                [ case config.toLifecycle b.image of
                     StateMachine.Lifecycle.Running ->
                         Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
 
