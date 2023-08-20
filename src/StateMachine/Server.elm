@@ -71,7 +71,7 @@ flagsToServerOptions a =
 
 type alias Model msg a =
     { server : Http.Server.Worker.Worker
-    , image : StateMachine.Worker.Image msg a
+    , state : StateMachine.Worker.Model msg a
     }
 
 
@@ -149,14 +149,14 @@ closeServer model =
 
 updateImage : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImage config msg model =
-    StateMachine.Worker.update config.stateMachineConfig msg model.image
-        |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
+    StateMachine.Worker.update config.stateMachineConfig msg model.state
+        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map ImageMessageReceived)
 
 
 updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImageByMessage config msg model =
-    StateMachine.Worker.updateByMessage config.stateMachineConfig msg model.image
-        |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
+    StateMachine.Worker.updateByMessage config.stateMachineConfig msg model.state
+        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map ImageMessageReceived)
 
 
 
@@ -168,6 +168,6 @@ subscriptions config model =
     Sub.batch
         [ Http.Server.Worker.subscriptions model.server
             |> Sub.map ServerMessageReceived
-        , StateMachine.Worker.subscriptions config.stateMachineConfig model.image
+        , StateMachine.Worker.subscriptions config.stateMachineConfig model.state
             |> Sub.map ImageMessageReceived
         ]
