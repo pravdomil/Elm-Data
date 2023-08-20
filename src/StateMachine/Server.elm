@@ -36,21 +36,7 @@ worker config =
 
 
 type alias Config msg a =
-    { init : () -> ( a, Cmd msg )
-    , update : msg -> a -> ( a, Cmd msg )
-    , subscriptions : a -> Sub msg
-
-    --
-    , codec : Codec.Codec a
-    , msgCodec : Codec.Codec msg
-
-    --
-    , flagsToFilePath : Json.Decode.Value -> FileSystem.Path
-    , flagsReceived : Json.Decode.Value -> msg
-
-    --
-    , toLifecycle : a -> StateMachine.Lifecycle.Lifecycle
-    , lifecycleChanged : StateMachine.Lifecycle.Lifecycle -> msg
+    { state : StateMachine.Worker.Config msg a
 
     --
     , flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
