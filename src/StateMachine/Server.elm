@@ -1,21 +1,24 @@
 module StateMachine.Server exposing
     ( worker, init, update, subscriptions
-    , Config, defaultConfig
+    , Config, flagsToServerOptions
     )
 
 {-|
 
 @docs worker, init, update, subscriptions
 
-@docs Config, defaultConfig
+@docs Config, flagsToServerOptions
 
 -}
 
+import Codec
+import FileSystem
 import Http.Server
 import Http.Server.Worker
 import Json.Decode
 import Platform.Extra
 import Process.Extra
+import StateMachine.Lifecycle
 import StateMachine.Worker
 
 
@@ -33,35 +36,33 @@ worker config =
 
 
 type alias Config msg a =
-    { stateMachineConfig : StateMachine.Worker.Config msg a
-    , flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
+    { init : () -> ( a, Cmd msg )
+    , update : msg -> a -> ( a, Cmd msg )
+    , subscriptions : a -> Sub msg
 
     --
+    , codec : Codec.Codec a
+    , msgCodec : Codec.Codec msg
+
+    --
+    , flagsToFilePath : Json.Decode.Value -> FileSystem.Path
+    , flagsReceived : Json.Decode.Value -> msg
+
+    --
+    , toLifecycle : a -> StateMachine.Lifecycle.Lifecycle
+    , lifecycleChanged : StateMachine.Lifecycle.Lifecycle -> msg
+
+    --
+    , flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
     , requestReceived : Http.Server.Request -> msg
-    , exitRequested : msg
     }
 
 
-defaultConfig :
-    StateMachine.File.Config msg { a | state : StateMachine.RunningState.RunningState }
-    -> (() -> { a | state : StateMachine.RunningState.RunningState })
-    -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
-    -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)
-    -> (Json.Decode.Value -> msg)
-    -> (Http.Server.Request -> msg)
-    -> msg
-    -> Config msg { a | state : StateMachine.RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ flagsReceived requestReceived exitRequested =
-    Config
-        (StateMachine.Worker.defaultConfig config init_ update_ subscriptions_ flagsReceived)
-        (\x ->
-            x
-                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "serverOptions" ] Json.Decode.string)
-                |> Result.andThen (Json.Decode.decodeString Http.Server.optionsDecoder)
-                |> Result.withDefault Http.Server.emptyOptions
-        )
-        requestReceived
-        exitRequested
+flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
+flagsToServerOptions a =
+    Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "serverOptions" ] Json.Decode.string) a
+        |> Result.andThen (Json.Decode.decodeString Http.Server.optionsDecoder)
+        |> Result.withDefault Http.Server.emptyOptions
 
 
 
