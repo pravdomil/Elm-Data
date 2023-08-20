@@ -90,9 +90,9 @@ insert config ( id, new ) (Database index db) =
     Database
         (index
             |> (\x ->
-                    case db |> Dict.Any.get Id.toString id of
-                        Just old ->
-                            removeIndexForId config id old x
+                    case Dict.Any.get Id.toString id db of
+                        Just doc ->
+                            removeIndexForId config id doc x
 
                         Nothing ->
                             x
