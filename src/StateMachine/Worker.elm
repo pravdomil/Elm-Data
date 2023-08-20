@@ -491,6 +491,13 @@ freeHandle model =
             Platform.Extra.noOperation model
 
 
+dayElapsed : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+dayElapsed model =
+    ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
+    , Cmd.none
+    )
+
+
 exitRequested : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 exitRequested model =
     case model.state of
@@ -507,13 +514,6 @@ exitRequested model =
 
 
 --
-
-
-dayElapsed : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-dayElapsed model =
-    ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
-    , Cmd.none
-    )
 
 
 log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
