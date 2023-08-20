@@ -112,11 +112,13 @@ type SaveMode
 
 type Msg a msg
     = NothingHappened
-    | ImageLoaded (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
+      --
+    | StateLoaded (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
     | SnapshotSaved (Result JavaScript.Error FileSystem.Handle.Handle)
     | RecoverFromSaveError
+      --
     | DayElapsed
     | BeforeExit
 
@@ -143,8 +145,8 @@ update config msg model =
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        ImageLoaded b ->
-            imageLoaded config b model
+        StateLoaded b ->
+            stateLoaded config b model
 
         MessageReceived b ->
             messageReceived config b model
@@ -235,15 +237,15 @@ load config model =
                                                 |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
                                 )
                     )
-                |> Task.attempt ImageLoaded
+                |> Task.attempt StateLoaded
             )
 
         _ ->
             Platform.Extra.noOperation model
 
 
-imageLoaded : Config msg a -> Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-imageLoaded config result model =
+stateLoaded : Config msg a -> Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ) -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+stateLoaded config result model =
     case result of
         Ok ( a, handle ) ->
             let
