@@ -59,17 +59,7 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        _ =
-            Debug.log "" ""
-
-        _ =
-            Debug.log "Message" msg
-
-        _ =
-            Debug.log "Model" model
-    in
-    case msg of
+    (case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
 
@@ -89,6 +79,20 @@ update msg model =
             ( { model | messages = String.fromInt b :: model.messages }
             , Cmd.none
             )
+    )
+        |> (\( x, x2 ) ->
+                let
+                    _ =
+                        Debug.log "" ""
+
+                    _ =
+                        Debug.log "Message" msg
+
+                    _ =
+                        Debug.log "Model" x
+                in
+                ( x, x2 )
+           )
 
 
 
