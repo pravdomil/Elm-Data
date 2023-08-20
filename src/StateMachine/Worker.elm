@@ -56,10 +56,10 @@ defaultConfig init_ update_ subscriptions_ flagsReceived =
         update_
         subscriptions_
         (\x ->
-            x
-                |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string)
-                |> Result.withDefault "image.jsonl"
-                |> FileSystem.stringToPath
+            FileSystem.stringToPath
+                (Result.withDefault "image.jsonl"
+                    (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) x)
+                )
         )
         (\fn x -> { x | state = fn x.state })
         (\x -> x.state)
