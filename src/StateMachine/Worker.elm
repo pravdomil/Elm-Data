@@ -263,7 +263,7 @@ stateLoaded config result model =
                                 Nothing
                     in
                     ( { model
-                        | state = Ok { state = state, handle = Ok handle }
+                        | state = Ok (ReadyState state (Ok handle))
                         , saveMode = SaveMessages
                       }
                     , cmd |> Cmd.map MessageReceived
@@ -285,7 +285,7 @@ stateLoaded config result model =
                                 Nothing
                     in
                     ( { model
-                        | state = Ok { state = state, handle = Ok handle }
+                        | state = Ok (ReadyState state (Ok handle))
                         , saveMode = SaveState
                       }
                     , cmd |> Cmd.map MessageReceived
