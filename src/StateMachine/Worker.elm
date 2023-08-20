@@ -251,8 +251,7 @@ stateLoaded config result model =
                 Just b ->
                     let
                         ( state, cmd ) =
-                            ( b, Cmd.none )
-                                |> replayMessages config (List.reverse model.saveQueue)
+                            replayMessages config (List.reverse model.saveQueue) ( b, Cmd.none )
                     in
                     ( { model
                         | state = Ok (ReadyState state (Ok handle))
@@ -277,8 +276,7 @@ stateLoaded config result model =
                 Nothing ->
                     let
                         ( state, cmd ) =
-                            config.init ()
-                                |> replayMessages config (List.reverse model.saveQueue)
+                            replayMessages config (List.reverse model.saveQueue) (config.init ())
                     in
                     ( { model
                         | state = Ok (ReadyState state (Ok handle))
