@@ -342,33 +342,28 @@ saveMessages config model =
         Ok a ->
             case a.handle of
                 Ok handle ->
-                    let
-                        data : Maybe String
-                        data =
-                            case model.saveQueue of
-                                [] ->
-                                    Nothing
+                    case model.saveQueue of
+                        [] ->
+                            Platform.Extra.noOperation model
 
-                                _ ->
-                                    model.saveQueue
-                                        |> List.reverse
-                                        |> List.map (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImageConfig.msgEncoder x))
-                                        |> String.join ""
-                                        |> Just
-                    in
-                    case data of
-                        Just b ->
+                        _ ->
+                            let
+                                data : String
+                                data =
+                                    String.join ""
+                                        (List.map
+                                            (\x -> "\n" ++ Json.Encode.encode 0 (config.fileImageConfig.msgEncoder x))
+                                            (List.reverse model.saveQueue)
+                                        )
+                            in
                             ( { model
                                 | state = Ok { a | handle = Err handle }
                                 , saveQueue = []
                                 , saveMode = SaveMessages
                               }
-                            , FileSystem.Handle.write b handle
+                            , FileSystem.Handle.write data handle
                                 |> Task.attempt MessagesSaved
                             )
-
-                        Nothing ->
-                            Platform.Extra.noOperation model
 
                 Err _ ->
                     Platform.Extra.noOperation model
