@@ -104,7 +104,7 @@ update config msg =
                 >> Platform.Extra.andThen
                     (case b of
                         StateMachine.Worker.ExitRequested ->
-                            closeServer
+                            updateServer Http.Server.Worker.CloseRequested
 
                         _ ->
                             Platform.Extra.noOperation
@@ -119,16 +119,6 @@ updateServer : Http.Server.Worker.Msg -> Model msg a -> ( Model msg a, Cmd (Msg 
 updateServer msg model =
     Http.Server.Worker.update msg model.server
         |> Tuple.mapBoth (\x -> { model | server = x }) (Cmd.map ServerMessageReceived)
-
-
-closeServer : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-closeServer model =
-    Http.Server.Worker.close model.server
-        |> Tuple.mapBoth (\x -> { model | server = x }) (Cmd.map ServerMessageReceived)
-
-
-
---
 
 
 updateState : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
