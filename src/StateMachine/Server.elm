@@ -93,7 +93,7 @@ update config msg =
                 >> Platform.Extra.andThen
                     (case b of
                         Http.Server.Worker.MessageReceived (Http.Server.RequestReceived c) ->
-                            updateStateByMessage config (config.requestReceived c)
+                            updateState config (StateMachine.Worker.MessageReceived (config.requestReceived c))
 
                         _ ->
                             Platform.Extra.noOperation
@@ -134,12 +134,6 @@ closeServer model =
 updateState : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateState config msg model =
     StateMachine.Worker.update config.state msg model.state
-        |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
-
-
-updateStateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-updateStateByMessage config msg model =
-    StateMachine.Worker.updateByMessage config.state msg model.state
         |> Tuple.mapBoth (\x -> { model | state = x }) (Cmd.map StateMessageReceived)
 
 
