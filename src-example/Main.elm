@@ -2,20 +2,18 @@ module Main exposing (..)
 
 import Codec
 import Json.Decode
-import MemoryImage.FileImage
-import MemoryImage.Worker
 import Platform.Extra
-import Process.Extra
-import RunningState
+import StateMachine.Lifecycle
+import StateMachine.Worker
 import Time
 
 
 main =
     Platform.worker
-        { init = MemoryImage.Worker.init config
+        { init = StateMachine.Worker.init config
         , update =
             \msg a ->
-                MemoryImage.Worker.update config msg a
+                StateMachine.Worker.update config msg a
                     |> (\( x, cmd ) ->
                             let
                                 _ =
@@ -25,35 +23,28 @@ main =
                                     Debug.log "Message" msg
 
                                 _ =
-                                    Debug.log "Image" (MemoryImage.Worker.image x)
+                                    Debug.log "State" x
                             in
                             ( x
                             , cmd
                             )
                        )
-        , subscriptions = MemoryImage.Worker.subscriptions config
+        , subscriptions = StateMachine.Worker.subscriptions config
         }
 
 
-config : MemoryImage.Worker.Config Msg Model
+config : StateMachine.Worker.Config Msg Model
 config =
-    MemoryImage.Worker.defaultConfig
-        (MemoryImage.FileImage.Config
-            (Codec.encoder modelCodec)
-            (Codec.decoder modelCodec)
-            (Codec.encoder msgCodec)
-            (Codec.decoder msgCodec)
-        )
+    StateMachine.Worker.Config
         init
         update
         subscriptions
-        (\x ->
-            FlagsReceived
-                (x
-                    |> Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int)
-                    |> Result.withDefault 0
-                )
-        )
+        modelCodec
+        msgCodec
+        StateMachine.Worker.flagsToFilePath
+        FlagsReceived
+        .lifecycle
+        LifecycleChanged
 
 
 
@@ -62,15 +53,17 @@ config =
 
 type alias Model =
     { messages : List String
-    , state : RunningState.RunningState
+    , lifecycle : StateMachine.Lifecycle.Lifecycle
     }
 
 
-init : () -> Model
+init : () -> ( Model, Cmd msg )
 init _ =
-    Model
+    ( Model
         [ "Welcome." ]
-        RunningState.Running
+        StateMachine.Lifecycle.Running
+    , Cmd.none
+    )
 
 
 
@@ -79,9 +72,10 @@ init _ =
 
 type Msg
     = NothingHappened
-    | FlagsReceived Int
+    | FlagsReceived Json.Decode.Value
+    | LifecycleChanged StateMachine.Lifecycle.Lifecycle
+      --
     | LogNumber Int
-    | ExitRequested
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -91,19 +85,24 @@ update msg model =
             Platform.Extra.noOperation model
 
         FlagsReceived b ->
+            let
+                pid : Int
+                pid =
+                    Result.withDefault 0 (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int) b)
+            in
             ( { model
-                | messages = ("Running with PID " ++ String.fromInt b ++ ".") :: model.messages
+                | messages = ("Running with PID " ++ String.fromInt pid ++ ".") :: model.messages
               }
-            , Process.Extra.onInterruptAndTerminationSignal ExitRequested
+            , Cmd.none
+            )
+
+        LifecycleChanged b ->
+            ( { model | lifecycle = b }
+            , Cmd.none
             )
 
         LogNumber b ->
             ( { model | messages = String.fromInt b :: model.messages }
-            , Cmd.none
-            )
-
-        ExitRequested ->
-            ( { model | state = RunningState.Exiting }
             , Cmd.none
             )
 
@@ -114,11 +113,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.state of
-        RunningState.Running ->
-            Time.every 1000 (\x -> LogNumber (x |> Time.posixToMillis |> (\x2 -> modBy 1000 (x2 // 1000))))
+    case model.lifecycle of
+        StateMachine.Lifecycle.Running ->
+            Time.every 1000 (\x -> LogNumber (Time.posixToMillis x |> (\x2 -> modBy 1000 (x2 // 1000))))
 
-        RunningState.Exiting ->
+        StateMachine.Lifecycle.Exiting ->
             Sub.none
 
 
@@ -128,9 +127,9 @@ subscriptions model =
 
 modelCodec : Codec.Codec Model
 modelCodec =
-    Codec.record (\x1 x2 -> { messages = x1, state = x2 })
+    Codec.record (\x1 x2 -> { messages = x1, lifecycle = x2 })
         |> Codec.field .messages (Codec.list Codec.string)
-        |> Codec.field .state RunningState.codec
+        |> Codec.field .lifecycle StateMachine.Lifecycle.codec
         |> Codec.buildRecord
 
 
@@ -147,15 +146,15 @@ msgCodec =
                         FlagsReceived x1 ->
                             fn2 x1
 
-                        LogNumber x1 ->
+                        LifecycleChanged x1 ->
                             fn3 x1
 
-                        ExitRequested ->
-                            fn4
+                        LogNumber x1 ->
+                            fn4 x1
                 )
                 |> Codec.variant0 NothingHappened
-                |> Codec.variant1 FlagsReceived Codec.int
+                |> Codec.variant1 FlagsReceived Codec.value
+                |> Codec.variant1 LifecycleChanged StateMachine.Lifecycle.codec
                 |> Codec.variant1 LogNumber Codec.int
-                |> Codec.variant0 ExitRequested
                 |> Codec.buildCustom
         )
