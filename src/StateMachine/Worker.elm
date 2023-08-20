@@ -377,6 +377,27 @@ saveMessages config a model =
             Platform.Extra.noOperation model
 
 
+messageSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+messageSaved result model =
+    case result of
+        Ok () ->
+            freeHandle model
+
+        Err b ->
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
+            , Process.sleep 1000
+                |> Task.perform (\() -> RecoverFromSaveError)
+            )
+                |> Platform.Extra.andThen
+                    (\x ->
+                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save messages." (Just (LogMessage.JavaScriptError b))) x
+                    )
+
+
+
+--
+
+
 saveState : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveState config a model =
     case a.handle of
@@ -417,23 +438,6 @@ saveState config a model =
 
         Err _ ->
             Platform.Extra.noOperation model
-
-
-messageSaved : Result JavaScript.Error () -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-messageSaved result model =
-    case result of
-        Ok () ->
-            freeHandle model
-
-        Err b ->
-            ( { model | state = Result.map (\x -> { x | saveMode = SaveState }) model.state }
-            , Process.sleep 1000
-                |> Task.perform (\() -> RecoverFromSaveError)
-            )
-                |> Platform.Extra.andThen
-                    (\x ->
-                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save messages." (Just (LogMessage.JavaScriptError b))) x
-                    )
 
 
 stateSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
