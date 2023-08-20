@@ -1,6 +1,6 @@
 module StateMachine.Worker exposing
     ( Config, flagsToFilePath, worker
-    , Model, Msg, init, update, updateByMessage, subscriptions
+    , Model, Msg(..), init, update, updateByMessage, subscriptions
     )
 
 {-|
