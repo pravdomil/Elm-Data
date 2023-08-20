@@ -110,7 +110,7 @@ type SaveMode
     = SaveMessages
     | SaveInitialState
     | SaveDailyState
-    | SaveStateBecauseOfError
+    | SaveStateBecauseOfWriteError
 
 
 
@@ -348,7 +348,7 @@ save config model =
                 SaveDailyState ->
                     saveState config b model
 
-                SaveStateBecauseOfError ->
+                SaveStateBecauseOfWriteError ->
                     saveState config b model
 
         Err (Exiting b) ->
@@ -392,7 +392,7 @@ messageSaved result model =
             freeHandle model
 
         Err b ->
-            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfError }) model.state }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfWriteError }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
@@ -465,7 +465,7 @@ stateSaved result model =
                     )
 
         Err b ->
-            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfError }) model.state }
+            ( { model | state = Result.map (\x -> { x | saveMode = SaveStateBecauseOfWriteError }) model.state }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
