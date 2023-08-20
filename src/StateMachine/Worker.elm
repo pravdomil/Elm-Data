@@ -302,11 +302,11 @@ messageReceived config msg model =
     (case model.state of
         Ok a ->
             let
-                ( nextImage, cmd ) =
+                ( state, cmd ) =
                     config.update msg a.state
             in
             ( { model
-                | state = Ok { a | state = nextImage }
+                | state = Ok { a | state = state }
               }
             , cmd |> Cmd.map MessageReceived
             )
