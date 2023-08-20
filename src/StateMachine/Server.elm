@@ -101,6 +101,14 @@ update config msg =
 
         StateMessageReceived b ->
             updateState config b
+                >> Platform.Extra.andThen
+                    (case b of
+                        StateMachine.Worker.ExitRequested ->
+                            closeServer
+
+                        _ ->
+                            Platform.Extra.noOperation
+                    )
 
 
 
