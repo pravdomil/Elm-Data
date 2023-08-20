@@ -116,7 +116,7 @@ type Msg a msg
     | StateLoaded (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
     | MessageReceived msg
     | MessagesSaved (Result JavaScript.Error ())
-    | SnapshotSaved (Result JavaScript.Error FileSystem.Handle.Handle)
+    | StateSaved (Result JavaScript.Error FileSystem.Handle.Handle)
     | RecoverFromSaveError
       --
     | DayElapsed
@@ -154,8 +154,8 @@ update config msg model =
         MessagesSaved b ->
             messageSaved b model
 
-        SnapshotSaved b ->
-            snapshotSaved b model
+        StateSaved b ->
+            stateSaved b model
 
         RecoverFromSaveError ->
             freeHandle model
@@ -350,7 +350,7 @@ save config model =
             saveMessages config model
 
         SaveState ->
-            saveSnapshot config model
+            saveState config model
 
 
 saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
@@ -394,8 +394,8 @@ saveMessages config model =
             Platform.Extra.noOperation model
 
 
-saveSnapshot : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-saveSnapshot config model =
+saveState : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+saveState config model =
     case model.state of
         Ok a ->
             case a.handle of
@@ -435,7 +435,7 @@ saveSnapshot config model =
                                                         |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
                                         )
                             )
-                        |> Task.attempt SnapshotSaved
+                        |> Task.attempt StateSaved
                     )
 
                 Err _ ->
@@ -469,8 +469,8 @@ messageSaved result model =
                 |> Platform.Extra.andThen (log message)
 
 
-snapshotSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-snapshotSaved result model =
+stateSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+stateSaved result model =
     case result of
         Ok handle ->
             let
@@ -479,7 +479,7 @@ snapshotSaved result model =
                     LogMessage.LogMessage
                         LogMessage.Info
                         "Memory Image"
-                        "Snapshot saved."
+                        "State saved."
                         Nothing
             in
             (case model.state of
@@ -502,7 +502,7 @@ snapshotSaved result model =
                     LogMessage.LogMessage
                         LogMessage.Error
                         "Memory Image"
-                        "Cannot save snapshot."
+                        "Cannot save state."
                         (Just (LogMessage.JavaScriptError b))
             in
             ( model
