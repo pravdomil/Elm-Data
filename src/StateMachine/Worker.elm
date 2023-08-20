@@ -464,21 +464,14 @@ stateSaved result model =
                 |> Platform.Extra.andThen (log message)
 
         Err b ->
-            let
-                message : LogMessage.LogMessage
-                message =
-                    LogMessage.LogMessage
-                        LogMessage.Error
-                        "Memory Image"
-                        "Cannot save state."
-                        (Just (LogMessage.JavaScriptError b))
-            in
-            ( model
+            ( { model | saveMode = SaveState }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
-                |> Platform.Extra.andThen (setSaveMode SaveState)
-                |> Platform.Extra.andThen (log message)
+                |> Platform.Extra.andThen
+                    (\x ->
+                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save state." (Just (LogMessage.JavaScriptError b))) x
+                    )
 
 
 freeHandle : Model msg a -> ( Model msg a, Cmd (Msg a msg) )
