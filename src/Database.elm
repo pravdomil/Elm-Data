@@ -113,10 +113,10 @@ insertMany config docs a =
 
 remove : Config comparable index a -> Id.Id a -> Database index a -> Database index a
 remove config id (Database index db) =
-    case db |> Dict.Any.get Id.toString id of
-        Just old ->
+    case Dict.Any.get Id.toString id db of
+        Just b ->
             Database
-                (removeIndexForId config id old index)
+                (removeIndexForId config id b index)
                 (Dict.Any.remove Id.toString id db)
 
         Nothing ->
