@@ -1,11 +1,14 @@
 module StateMachine.Server exposing
-    ( worker, init, update, subscriptions
+    ( worker
+    , Model, Msg(..), init, update, subscriptions
     , Config, flagsToServerOptions
     )
 
 {-|
 
-@docs worker, init, update, subscriptions
+@docs worker
+
+@docs Model, Msg, init, update, subscriptions
 
 @docs Config, flagsToServerOptions
 
