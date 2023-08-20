@@ -207,8 +207,8 @@ subscriptions config a =
 load : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 load config model =
     let
-        toImage : String -> Result Json.Decode.Error (Maybe a)
-        toImage b =
+        toState : String -> Result Json.Decode.Error (Maybe a)
+        toState b =
             case b of
                 "" ->
                     Ok Nothing
@@ -224,7 +224,7 @@ load config model =
                 |> Task.andThen
                     (\handle ->
                         FileSystem.Handle.read handle
-                            |> Task.andThen (toImage >> Task.Extra.fromResult >> Task.mapError JavaScript.DecodeError)
+                            |> Task.andThen (toState >> Task.Extra.fromResult >> Task.mapError JavaScript.DecodeError)
                             |> Task.Extra.andAlwaysThen
                                 (\x ->
                                     case x of
