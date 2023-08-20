@@ -21,7 +21,7 @@ config =
         modelCodec
         msgCodec
         StateMachine.Worker.flagsToFilePath
-        (\x -> PidReceived (Result.withDefault 0 (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int) x)))
+        (\x -> FlagsReceived (Result.withDefault 0 (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int) x)))
         .lifecycle
         LifecycleChanged
 
@@ -51,7 +51,7 @@ init _ =
 
 type Msg
     = NothingHappened
-    | PidReceived Int
+    | FlagsReceived Int
     | LifecycleChanged StateMachine.Lifecycle.Lifecycle
       --
     | LogNumber Int
@@ -73,7 +73,7 @@ update msg model =
         NothingHappened ->
             Platform.Extra.noOperation model
 
-        PidReceived b ->
+        FlagsReceived b ->
             ( { model
                 | messages = ("Running with PID " ++ String.fromInt b ++ ".") :: model.messages
               }
@@ -127,7 +127,7 @@ msgCodec =
                         NothingHappened ->
                             fn1
 
-                        PidReceived x1 ->
+                        FlagsReceived x1 ->
                             fn2 x1
 
                         LifecycleChanged x1 ->
@@ -137,7 +137,7 @@ msgCodec =
                             fn4 x1
                 )
                 |> Codec.variant0 NothingHappened
-                |> Codec.variant1 PidReceived Codec.int
+                |> Codec.variant1 FlagsReceived Codec.int
                 |> Codec.variant1 LifecycleChanged StateMachine.Lifecycle.codec
                 |> Codec.variant1 LogNumber Codec.int
                 |> Codec.buildCustom
