@@ -1,11 +1,11 @@
 module StateMachine.Worker exposing
-    ( Config, defaultConfig, worker
+    ( Config, flagsToFilePath, worker
     , Msg, init, update, updateByMessage, subscriptions
     )
 
 {-|
 
-@docs Config, defaultConfig, worker
+@docs Config, flagsToFilePath, worker
 
 @docs Msg, init, update, updateByMessage, subscriptions
 
@@ -35,7 +35,7 @@ type alias Config msg a =
     , subscriptions : a -> Sub msg
 
     --
-    , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
+    , flagsToFilePath : Json.Decode.Value -> FileSystem.Path
     , flagsReceived : Json.Decode.Value -> msg
 
     --
@@ -44,26 +44,12 @@ type alias Config msg a =
     }
 
 
-defaultConfig :
-    (() -> { a | state : StateMachine.Lifecycle.Lifecycle })
-    -> (msg -> { a | state : StateMachine.Lifecycle.Lifecycle } -> ( { a | state : StateMachine.Lifecycle.Lifecycle }, Cmd msg ))
-    -> ({ a | state : StateMachine.Lifecycle.Lifecycle } -> Sub msg)
-    -> (Json.Decode.Value -> msg)
-    -> Config msg { a | state : StateMachine.Lifecycle.Lifecycle }
-defaultConfig init_ update_ subscriptions_ flagsReceived =
-    Config
-        init_
-        update_
-        subscriptions_
-        (\x ->
-            FileSystem.stringToPath
-                (Result.withDefault "image.jsonl"
-                    (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) x)
-                )
+flagsToFilePath : Json.Decode.Value -> FileSystem.Path
+flagsToFilePath a =
+    FileSystem.stringToPath
+        (Result.withDefault "image.jsonl"
+            (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) a)
         )
-        flagsReceived
-        (\fn x -> { x | state = fn x.state })
-        (\x -> x.state)
 
 
 
@@ -95,7 +81,7 @@ init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
     ( Model
         (Err NoImage)
-        (config.flagsToImagePath flags)
+        (config.flagsToFilePath flags)
         [ config.flagsReceived flags ]
         SaveMessages
     , Process.Extra.onBeforeExit BeforeExit
