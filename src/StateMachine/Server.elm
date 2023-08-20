@@ -33,11 +33,11 @@ worker config =
 
 
 type alias Config msg a =
-    { state : StateMachine.Worker.Config msg a
+    { flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
+    , requestReceived : Http.Server.Request -> msg
 
     --
-    , flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
-    , requestReceived : Http.Server.Request -> msg
+    , state : StateMachine.Worker.Config msg a
     }
 
 
@@ -65,7 +65,7 @@ init config flags =
             Http.Server.Worker.init (config.flagsToServerOptions flags)
 
         ( image, cmd2 ) =
-            StateMachine.Worker.init config.stateMachineConfig flags
+            StateMachine.Worker.init config.state flags
     in
     ( Model server image
     , Cmd.batch
