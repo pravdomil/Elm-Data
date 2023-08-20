@@ -75,7 +75,7 @@ worker config =
 
 type alias Model msg a =
     { filePath : FileSystem.Path
-    , state : Result (StateError a) (StateAndHandle a)
+    , state : Result (StateError a) (State a)
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -85,7 +85,7 @@ type alias Model msg a =
 --
 
 
-type alias StateAndHandle a =
+type alias State a =
     { state : a
     , handle : Result FileSystem.Handle.Handle FileSystem.Handle.Handle
     }
@@ -99,7 +99,7 @@ type StateError a
     = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
-    | Exiting (StateAndHandle a)
+    | Exiting (State a)
 
 
 
@@ -263,7 +263,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) ( b, Cmd.none )
                     in
                     ( { model
-                        | state = Ok (StateAndHandle state (Ok handle))
+                        | state = Ok (State state (Ok handle))
                         , saveMode = SaveMessages
                       }
                     , cmd |> Cmd.map MessageReceived
@@ -279,7 +279,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) (config.init ())
                     in
                     ( { model
-                        | state = Ok (StateAndHandle state (Ok handle))
+                        | state = Ok (State state (Ok handle))
                         , saveMode = SaveState
                       }
                     , cmd |> Cmd.map MessageReceived
@@ -350,7 +350,7 @@ save config model =
             saveState config b model
 
 
-saveMessages : Config msg a -> StateAndHandle a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+saveMessages : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveMessages config a model =
     case a.handle of
         Ok handle ->
@@ -381,7 +381,7 @@ saveMessages config a model =
             Platform.Extra.noOperation model
 
 
-saveState : Config msg a -> StateAndHandle a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+saveState : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveState config a model =
     case a.handle of
         Ok handle ->
