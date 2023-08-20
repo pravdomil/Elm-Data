@@ -346,8 +346,8 @@ save config model =
                 SaveState ->
                     saveState config b model
 
-        Err _ ->
-            Platform.Extra.noOperation model
+        Err (Exiting b) ->
+            saveState config b model
 
 
 saveMessages : Config msg a -> StateAndHandle a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
