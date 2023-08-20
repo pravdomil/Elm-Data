@@ -75,7 +75,7 @@ worker config =
 
 type alias Model msg a =
     { state : Result StateError (ReadyState a)
-    , stateMachineFilePath : FileSystem.Path
+    , filePath : FileSystem.Path
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -228,7 +228,7 @@ load config model =
     case model.state of
         Err NotLoaded ->
             ( { model | state = Err Loading }
-            , FileSystem.Handle.open fileMode model.stateMachineFilePath
+            , FileSystem.Handle.open fileMode model.filePath
                 |> Task.andThen
                     (\handle ->
                         FileSystem.Handle.read handle
@@ -394,7 +394,7 @@ saveState config model =
 
                         tmpPath : FileSystem.Path
                         tmpPath =
-                            FileSystem.stringToPath (FileSystem.pathToString model.stateMachineFilePath ++ ".tmp")
+                            FileSystem.stringToPath (FileSystem.pathToString model.filePath ++ ".tmp")
                     in
                     ( { model
                         | state = Ok { a | handle = Err handle }
@@ -405,7 +405,7 @@ saveState config model =
                         |> Task.andThen
                             (\newHandle ->
                                 FileSystem.Handle.write data newHandle
-                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.stateMachineFilePath)
+                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.filePath)
                                     |> Task.Extra.andAlwaysThen
                                         (\x ->
                                             case x of
