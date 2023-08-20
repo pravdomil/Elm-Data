@@ -382,7 +382,7 @@ saveState config model =
                         data : String
                         data =
                             StateMachine.File.create [] a.state
-                                |> StateMachine.File.toString config.fileImageConfig
+                                |> StateMachine.File.toString config.codec config.msgCodec
 
                         tmpPath : FileSystem.Path
                         tmpPath =
