@@ -1,8 +1,9 @@
-module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toAny, toString)
+module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toAny, toId, toString)
 
 import Bitwise
 import Codec
 import Crockford
+import Id
 import Time
 
 
@@ -51,6 +52,11 @@ toString (Ulid a) =
 toAny : Ulid a -> Ulid b
 toAny (Ulid a) =
     Ulid a
+
+
+toId : Ulid a -> Id.Id a
+toId a =
+    Id.fromString (toString a)
 
 
 codec : Codec.Codec (Ulid a)
