@@ -104,7 +104,7 @@ insert config ( id, new ) (Database index db) =
 
 insertMany : Config comparable index a -> List ( Id.Id a, a ) -> Database index a -> Database index a
 insertMany config docs a =
-    docs |> List.foldl (insert config) a
+    List.foldl (insert config) a docs
 
 
 
