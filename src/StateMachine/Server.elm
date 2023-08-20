@@ -91,14 +91,12 @@ update config msg =
         ServerMessageReceived b ->
             updateServer b
                 >> Platform.Extra.andThen
-                    (case Http.Server.Worker.toPublicMsg b of
-                        Just c ->
-                            case c of
-                                Http.Server.Worker.RequestReceived d ->
-                                    updateStateByMessage config (config.requestReceived d)
+                    (case b of
+                        Http.Server.Worker.MessageReceived (Http.Server.RequestReceived c) ->
+                            updateStateByMessage config (config.requestReceived c)
 
-                        Nothing ->
-                            Platform.Extra.noOperation
+                        _ ->
+                            Nothing
                     )
 
         StateMessageReceived b ->
