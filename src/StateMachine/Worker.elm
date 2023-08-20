@@ -115,6 +115,7 @@ type Msg a msg
       --
     | StateLoaded (Result JavaScript.Error ( Maybe a, FileSystem.Handle.Handle ))
     | MessageReceived msg
+      --
     | MessagesSaved (Result JavaScript.Error ())
     | StateSaved (Result JavaScript.Error FileSystem.Handle.Handle)
     | RecoverFromSaveError
