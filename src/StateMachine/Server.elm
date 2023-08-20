@@ -16,8 +16,6 @@ import Http.Server.Worker
 import Json.Decode
 import Platform.Extra
 import Process.Extra
-import StateMachine.File
-import StateMachine.RunningState
 import StateMachine.Worker
 
 
@@ -35,7 +33,7 @@ worker config =
 
 
 type alias Config msg a =
-    { imageConfig : StateMachine.Worker.Config msg a
+    { stateMachineConfig : StateMachine.Worker.Config msg a
     , flagsToServerOptions : Json.Decode.Value -> Http.Server.Options
 
     --
@@ -83,7 +81,7 @@ init config flags =
             Http.Server.Worker.init (config.flagsToServerOptions flags)
 
         ( image, cmd2 ) =
-            StateMachine.Worker.init config.imageConfig flags
+            StateMachine.Worker.init config.stateMachineConfig flags
     in
     ( Model server image
     , Cmd.batch
@@ -150,13 +148,13 @@ closeServer model =
 
 updateImage : Config msg a -> StateMachine.Worker.Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImage config msg model =
-    StateMachine.Worker.update config.imageConfig msg model.image
+    StateMachine.Worker.update config.stateMachineConfig msg model.image
         |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
 
 
 updateImageByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateImageByMessage config msg model =
-    StateMachine.Worker.updateByMessage config.imageConfig msg model.image
+    StateMachine.Worker.updateByMessage config.stateMachineConfig msg model.image
         |> Tuple.mapBoth (\x -> { model | image = x }) (Cmd.map ImageMessageReceived)
 
 
@@ -169,6 +167,6 @@ subscriptions config model =
     Sub.batch
         [ Http.Server.Worker.subscriptions model.server
             |> Sub.map ServerMessageReceived
-        , StateMachine.Worker.subscriptions config.imageConfig model.image
+        , StateMachine.Worker.subscriptions config.stateMachineConfig model.image
             |> Sub.map ImageMessageReceived
         ]
