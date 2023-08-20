@@ -1,9 +1,12 @@
 module LogMessage exposing (..)
 
 import Codec
+import Console
 import JavaScript
 import JavaScript.Codec
 import Json.Decode
+import LogMessage
+import Task
 
 
 type alias LogMessage =
@@ -12,6 +15,24 @@ type alias LogMessage =
     , message : String
     , detail : Maybe Detail
     }
+
+
+log : LogMessage -> Task.Task JavaScript.Error ()
+log a =
+    let
+        fn : String -> Task.Task JavaScript.Error ()
+        fn =
+            case a.type_ of
+                Info ->
+                    Console.logInfo
+
+                Warning ->
+                    Console.logWarning
+
+                Error ->
+                    Console.logError
+    in
+    fn (Codec.encodeToString 0 LogMessage.codec a)
 
 
 

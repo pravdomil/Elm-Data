@@ -521,7 +521,7 @@ beforeExitReceived model =
 log : LogMessage.LogMessage -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 log a model =
     ( model
-    , logMessage a
+    , LogMessage.log a
         |> Task.attempt (\_ -> NothingHappened)
     )
 
@@ -545,24 +545,6 @@ replayMessages config messages ( a, cmd ) =
     in
     List.foldl fn ( a, [ cmd ] ) messages
         |> Tuple.mapSecond Cmd.batch
-
-
-logMessage : LogMessage.LogMessage -> Task.Task JavaScript.Error ()
-logMessage a =
-    let
-        fn : String -> Task.Task JavaScript.Error ()
-        fn =
-            case a.type_ of
-                LogMessage.Info ->
-                    Console.logInfo
-
-                LogMessage.Warning ->
-                    Console.logWarning
-
-                LogMessage.Error ->
-                    Console.logError
-    in
-    fn (Codec.encodeToString 0 LogMessage.codec a)
 
 
 fileMode : FileSystem.Handle.Mode
