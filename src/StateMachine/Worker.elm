@@ -253,14 +253,6 @@ stateLoaded config result model =
                         ( state, cmd ) =
                             ( b, Cmd.none )
                                 |> replayMessages config (List.reverse model.saveQueue)
-
-                        message : LogMessage.LogMessage
-                        message =
-                            LogMessage.LogMessage
-                                LogMessage.Info
-                                "State Machine"
-                                "State was loaded."
-                                Nothing
                     in
                     ( { model
                         | state = Ok (ReadyState state (Ok handle))
@@ -268,21 +260,25 @@ stateLoaded config result model =
                       }
                     , cmd |> Cmd.map MessageReceived
                     )
-                        |> Platform.Extra.andThen (log message)
+                        |> Platform.Extra.andThen
+                            (\x ->
+                                let
+                                    message : LogMessage.LogMessage
+                                    message =
+                                        LogMessage.LogMessage
+                                            LogMessage.Info
+                                            "State Machine"
+                                            "State was loaded."
+                                            Nothing
+                                in
+                                log message x
+                            )
 
                 Nothing ->
                     let
                         ( state, cmd ) =
                             config.init ()
                                 |> replayMessages config (List.reverse model.saveQueue)
-
-                        message : LogMessage.LogMessage
-                        message =
-                            LogMessage.LogMessage
-                                LogMessage.Info
-                                "State Machine"
-                                "State was initialized."
-                                Nothing
                     in
                     ( { model
                         | state = Ok (ReadyState state (Ok handle))
@@ -290,7 +286,19 @@ stateLoaded config result model =
                       }
                     , cmd |> Cmd.map MessageReceived
                     )
-                        |> Platform.Extra.andThen (log message)
+                        |> Platform.Extra.andThen
+                            (\x ->
+                                let
+                                    message : LogMessage.LogMessage
+                                    message =
+                                        LogMessage.LogMessage
+                                            LogMessage.Info
+                                            "State Machine"
+                                            "State was initialized."
+                                            Nothing
+                                in
+                                log message x
+                            )
 
         Err b ->
             let
