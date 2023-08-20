@@ -86,11 +86,11 @@ type Msg a msg
 
 
 update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-update config msg model =
+update config msg =
     case msg of
         ServerMessageReceived b ->
-            updateServer b model
-                |> Platform.Extra.andThen
+            updateServer b
+                >> Platform.Extra.andThen
                     (case Http.Server.Worker.toPublicMsg b of
                         Just c ->
                             case c of
@@ -102,7 +102,7 @@ update config msg model =
                     )
 
         StateMessageReceived b ->
-            updateState config b model
+            updateState config b
 
 
 
