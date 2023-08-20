@@ -70,7 +70,7 @@ worker config =
 
 
 type alias Model msg a =
-    { state : Result Error (ReadyState a)
+    { state : Result StateError (ReadyState a)
     , stateMachineFilePath : FileSystem.Path
     , saveQueue : List msg
     , saveMode : SaveMode
@@ -91,7 +91,7 @@ type alias ReadyState a =
 --
 
 
-type Error
+type StateError
     = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
