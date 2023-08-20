@@ -92,7 +92,7 @@ type alias ReadyImage a =
 
 
 type Error
-    = NoImage
+    = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
 
@@ -128,7 +128,7 @@ type Msg a msg
 init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
     ( Model
-        (Err NoImage)
+        (Err NotLoaded)
         (config.flagsToFilePath flags)
         [ config.flagsReceived flags ]
         SaveMessages
@@ -215,7 +215,7 @@ load config model =
                             )
     in
     case model.image of
-        Err NoImage ->
+        Err NotLoaded ->
             ( { model
                 | image = Err Loading
               }
