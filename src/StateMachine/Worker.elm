@@ -386,10 +386,7 @@ saveState config model =
 
                         tmpPath : FileSystem.Path
                         tmpPath =
-                            model.stateMachineFilePath
-                                |> FileSystem.pathToString
-                                |> (\x -> x ++ ".tmp")
-                                |> FileSystem.stringToPath
+                            FileSystem.stringToPath (FileSystem.pathToString model.stateMachineFilePath ++ ".tmp")
                     in
                     ( { model
                         | state = Ok { a | handle = Err handle }
