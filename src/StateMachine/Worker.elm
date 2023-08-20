@@ -394,10 +394,6 @@ messageSaved result model =
                     )
 
 
-
---
-
-
 saveState : Config msg a -> State a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 saveState config a model =
     case a.handle of
