@@ -427,21 +427,14 @@ messageSaved result model =
             freeHandle model
 
         Err b ->
-            let
-                message : LogMessage.LogMessage
-                message =
-                    LogMessage.LogMessage
-                        LogMessage.Error
-                        "Memory Image"
-                        "Cannot save messages."
-                        (Just (LogMessage.JavaScriptError b))
-            in
-            ( model
+            ( { model | saveMode = SaveState }
             , Process.sleep 1000
                 |> Task.perform (\() -> RecoverFromSaveError)
             )
-                |> Platform.Extra.andThen (setSaveMode SaveState)
-                |> Platform.Extra.andThen (log message)
+                |> Platform.Extra.andThen
+                    (\x ->
+                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save messages." (Just (LogMessage.JavaScriptError b))) x
+                    )
 
 
 stateSaved : Result JavaScript.Error FileSystem.Handle.Handle -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
