@@ -74,7 +74,7 @@ worker config =
 
 type alias Model msg a =
     { filePath : FileSystem.Path
-    , state : Result (StateError a) (State a)
+    , state : Result StateError (State a)
     , messageQueue : List msg
     }
 
@@ -94,7 +94,7 @@ type alias State a =
 --
 
 
-type StateError a
+type StateError
     = NotLoaded
     | Loading
     | JavaScriptError JavaScript.Error
