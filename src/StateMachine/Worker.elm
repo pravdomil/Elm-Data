@@ -176,7 +176,7 @@ update config msg =
             freeHandle
 
         DayElapsed ->
-            setSaveMode SaveState
+            dayElapsed SaveState
 
         ExitRequested ->
             exitRequested
@@ -509,8 +509,8 @@ exitRequested model =
 --
 
 
-setSaveMode : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-setSaveMode a model =
+dayElapsed : SaveMode -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+dayElapsed a model =
     ( { model | state = Result.map (\x -> { x | saveMode = a }) model.state }
     , Cmd.none
     )
