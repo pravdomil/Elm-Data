@@ -63,7 +63,8 @@ documentById id a =
 
 documentsByIndex : Config comparable index a -> index -> Database index a -> List ( Id.Id a, a )
 documentsByIndex config index a =
-    idsByIndex config index a |> List.filterMap (\x -> documentById x a |> Maybe.map (Tuple.pair x))
+    idsByIndex config index a
+        |> List.filterMap (\x -> Maybe.map (Tuple.pair x) (documentById x a))
 
 
 idsByIndex : Config comparable index a -> index -> Database index a -> List (Id.Id a)
