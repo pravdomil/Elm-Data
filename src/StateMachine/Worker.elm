@@ -46,10 +46,7 @@ image (Image a) =
 
 
 type alias Config msg a =
-    { fileImageConfig : StateMachine.File.Config msg a
-
-    --
-    , init : () -> a
+    { init : () -> a
     , update : msg -> a -> ( a, Cmd msg )
     , subscriptions : a -> Sub msg
 
@@ -64,15 +61,13 @@ type alias Config msg a =
 
 
 defaultConfig :
-    StateMachine.File.Config msg { a | state : StateMachine.RunningState.RunningState }
-    -> (() -> { a | state : StateMachine.RunningState.RunningState })
+    (() -> { a | state : StateMachine.RunningState.RunningState })
     -> (msg -> { a | state : StateMachine.RunningState.RunningState } -> ( { a | state : StateMachine.RunningState.RunningState }, Cmd msg ))
     -> ({ a | state : StateMachine.RunningState.RunningState } -> Sub msg)
     -> (Json.Decode.Value -> msg)
     -> Config msg { a | state : StateMachine.RunningState.RunningState }
-defaultConfig config init_ update_ subscriptions_ flagsReceived =
+defaultConfig init_ update_ subscriptions_ flagsReceived =
     Config
-        config
         init_
         update_
         subscriptions_
