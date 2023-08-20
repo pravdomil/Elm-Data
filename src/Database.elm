@@ -137,7 +137,7 @@ codec config a =
     Dict.Any.codec Id.codec a
         |> Codec.map
             (\x -> documents x)
-            (\x -> Database (Dict.Any.foldr (insertIndexForId config) Dict.Any.empty x) x)
+            (\x -> Database (Dict.Any.foldl (insertIndexForId config) Dict.Any.empty x) x)
 
 
 
