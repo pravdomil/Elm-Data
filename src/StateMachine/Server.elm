@@ -15,7 +15,6 @@ import Http.Server
 import Http.Server.Worker
 import Json.Decode
 import Platform.Extra
-import Process.Extra
 import StateMachine.Worker
 
 
@@ -71,7 +70,6 @@ init config flags =
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
         , cmd2 |> Cmd.map StateMessageReceived
-        , Process.Extra.onInterruptAndTerminationSignal ExitRequested
         ]
     )
 
