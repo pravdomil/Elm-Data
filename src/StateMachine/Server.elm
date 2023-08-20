@@ -66,7 +66,9 @@ init config flags =
         ( state, cmd2 ) =
             StateMachine.Worker.init config.state flags
     in
-    ( Model server state
+    ( Model
+        server
+        state
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
         , cmd2 |> Cmd.map StateMessageReceived
