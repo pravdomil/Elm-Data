@@ -250,7 +250,7 @@ stateLoaded config result model =
             case a of
                 Just b ->
                     let
-                        ( image_, cmd ) =
+                        ( state, cmd ) =
                             ( b, Cmd.none )
                                 |> replayMessages config (List.reverse model.saveQueue)
 
@@ -263,7 +263,7 @@ stateLoaded config result model =
                                 Nothing
                     in
                     ( { model
-                        | state = Ok { state = image_, handle = Ok handle }
+                        | state = Ok { state = state, handle = Ok handle }
                         , saveMode = SaveMessages
                       }
                     , cmd |> Cmd.map MessageReceived
@@ -272,7 +272,7 @@ stateLoaded config result model =
 
                 Nothing ->
                     let
-                        ( image_, cmd ) =
+                        ( state, cmd ) =
                             config.init ()
                                 |> replayMessages config (List.reverse model.saveQueue)
 
@@ -285,7 +285,7 @@ stateLoaded config result model =
                                 Nothing
                     in
                     ( { model
-                        | state = Ok { state = image_, handle = Ok handle }
+                        | state = Ok { state = state, handle = Ok handle }
                         , saveMode = SaveState
                       }
                     , cmd |> Cmd.map MessageReceived
