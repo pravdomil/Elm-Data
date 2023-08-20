@@ -36,11 +36,11 @@ type alias Config msg a =
 
     --
     , flagsToImagePath : Json.Decode.Value -> FileSystem.Path
-    , mapRunningState : (StateMachine.RunningState.RunningState -> StateMachine.RunningState.RunningState) -> a -> a
-    , toRunningState : a -> StateMachine.RunningState.RunningState
+    , flagsReceived : Json.Decode.Value -> msg
 
     --
-    , flagsReceived : Json.Decode.Value -> msg
+    , mapRunningState : (StateMachine.RunningState.RunningState -> StateMachine.RunningState.RunningState) -> a -> a
+    , toRunningState : a -> StateMachine.RunningState.RunningState
     }
 
 
@@ -61,9 +61,9 @@ defaultConfig init_ update_ subscriptions_ flagsReceived =
                     (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) x)
                 )
         )
+        flagsReceived
         (\fn x -> { x | state = fn x.state })
         (\x -> x.state)
-        flagsReceived
 
 
 
