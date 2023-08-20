@@ -9,28 +9,7 @@ import Time
 
 
 main =
-    Platform.worker
-        { init = StateMachine.Worker.init config
-        , update =
-            \msg a ->
-                StateMachine.Worker.update config msg a
-                    |> (\( x, cmd ) ->
-                            let
-                                _ =
-                                    Debug.log "" ""
-
-                                _ =
-                                    Debug.log "Message" msg
-
-                                _ =
-                                    Debug.log "State" x
-                            in
-                            ( x
-                            , cmd
-                            )
-                       )
-        , subscriptions = StateMachine.Worker.subscriptions config
-        }
+    StateMachine.Worker.worker config
 
 
 config : StateMachine.Worker.Config Msg Model
@@ -80,6 +59,16 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        _ =
+            Debug.log "" ""
+
+        _ =
+            Debug.log "Message" msg
+
+        _ =
+            Debug.log "Model" model
+    in
     case msg of
         NothingHappened ->
             Platform.Extra.noOperation model
