@@ -128,7 +128,7 @@ type Msg a msg
     | RecoverFromSaveError
       --
     | DayElapsed
-    | ExitReceived
+    | ExitRequested
     | BeforeExitReceived
 
 
@@ -148,7 +148,7 @@ init config flags =
     )
         |> Platform.Extra.andThen
             (\x ->
-                ( x, Process.Extra.onInterruptAndTerminationSignal ExitReceived )
+                ( x, Process.Extra.onInterruptAndTerminationSignal ExitRequested )
             )
         |> Platform.Extra.andThen
             (\x ->
@@ -181,7 +181,7 @@ update config msg =
         DayElapsed ->
             dayElapsed
 
-        ExitReceived ->
+        ExitRequested ->
             messageReceived config (config.lifecycleChanged StateMachine.Lifecycle.Exiting)
 
         BeforeExitReceived ->
