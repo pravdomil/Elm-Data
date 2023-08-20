@@ -219,9 +219,7 @@ load config model =
     in
     case model.state of
         Err NotLoaded ->
-            ( { model
-                | state = Err Loading
-              }
+            ( { model | state = Err Loading }
             , FileSystem.Handle.open fileMode model.stateMachineFilePath
                 |> Task.andThen
                     (\handle ->
