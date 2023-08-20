@@ -47,7 +47,7 @@ type alias Config msg a =
 flagsToFilePath : Json.Decode.Value -> FileSystem.Path
 flagsToFilePath a =
     FileSystem.stringToPath
-        (Result.withDefault "image.jsonl"
+        (Result.withDefault "state.jsonl"
             (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "imagePath" ] Json.Decode.string) a)
         )
 
