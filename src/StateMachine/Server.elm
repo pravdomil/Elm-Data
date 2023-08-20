@@ -52,7 +52,7 @@ flagsToServerOptions a =
 
 
 type alias Model msg a =
-    { server : Http.Server.Worker.Worker
+    { server : Http.Server.Worker.Model
     , state : StateMachine.Worker.Model msg a
     }
 
