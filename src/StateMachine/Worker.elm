@@ -75,7 +75,7 @@ worker config =
 
 type alias Model msg a =
     { filePath : FileSystem.Path
-    , state : Result StateError (ReadyState a)
+    , state : Result StateError (StateAndHandle a)
     , saveQueue : List msg
     , saveMode : SaveMode
     }
@@ -85,7 +85,7 @@ type alias Model msg a =
 --
 
 
-type alias ReadyState a =
+type alias StateAndHandle a =
     { state : a
     , handle : Result FileSystem.Handle.Handle FileSystem.Handle.Handle
     }
@@ -262,7 +262,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) ( b, Cmd.none )
                     in
                     ( { model
-                        | state = Ok (ReadyState state (Ok handle))
+                        | state = Ok (StateAndHandle state (Ok handle))
                         , saveMode = SaveMessages
                       }
                     , cmd |> Cmd.map MessageReceived
@@ -278,7 +278,7 @@ stateLoaded config result model =
                             replayMessages config (List.reverse model.saveQueue) (config.init ())
                     in
                     ( { model
-                        | state = Ok (ReadyState state (Ok handle))
+                        | state = Ok (StateAndHandle state (Ok handle))
                         , saveMode = SaveState
                       }
                     , cmd |> Cmd.map MessageReceived
