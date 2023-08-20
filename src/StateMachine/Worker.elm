@@ -337,95 +337,90 @@ messageReceived config msg model =
 
 save : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 save config model =
-    case model.saveMode of
-        SaveMessages ->
-            saveMessages config model
-
-        SaveState ->
-            saveState config model
-
-
-saveMessages : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-saveMessages config model =
     case model.state of
-        Ok a ->
-            case a.handle of
-                Ok handle ->
-                    case model.saveQueue of
-                        [] ->
-                            Platform.Extra.noOperation model
+        Ok b ->
+            case model.saveMode of
+                SaveMessages ->
+                    saveMessages config b model
 
-                        _ ->
-                            let
-                                data : String
-                                data =
-                                    String.join ""
-                                        (List.map
-                                            (\x -> "\n" ++ Codec.encodeToString 0 config.msgCodec x)
-                                            (List.reverse model.saveQueue)
-                                        )
-                            in
-                            ( { model
-                                | state = Ok { a | handle = Err handle }
-                                , saveQueue = []
-                                , saveMode = SaveMessages
-                              }
-                            , FileSystem.Handle.write data handle
-                                |> Task.attempt MessagesSaved
-                            )
+                SaveState ->
+                    saveState config b model
 
-                Err _ ->
-                    Platform.Extra.noOperation model
-
-        _ ->
+        Err _ ->
             Platform.Extra.noOperation model
 
 
-saveState : Config msg a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
-saveState config model =
-    case model.state of
-        Ok a ->
-            case a.handle of
-                Ok handle ->
+saveMessages : Config msg a -> StateAndHandle a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+saveMessages config a model =
+    case a.handle of
+        Ok handle ->
+            case model.saveQueue of
+                [] ->
+                    Platform.Extra.noOperation model
+
+                _ ->
                     let
                         data : String
                         data =
-                            StateMachine.File.create [] a.state
-                                |> StateMachine.File.toString config.codec config.msgCodec
-
-                        tmpPath : FileSystem.Path
-                        tmpPath =
-                            FileSystem.stringToPath (FileSystem.pathToString model.filePath ++ ".tmp")
+                            String.join ""
+                                (List.map
+                                    (\x -> "\n" ++ Codec.encodeToString 0 config.msgCodec x)
+                                    (List.reverse model.saveQueue)
+                                )
                     in
                     ( { model
                         | state = Ok { a | handle = Err handle }
                         , saveQueue = []
                         , saveMode = SaveMessages
                       }
-                    , FileSystem.Handle.open fileMode tmpPath
-                        |> Task.andThen
-                            (\newHandle ->
-                                FileSystem.Handle.write data newHandle
-                                    |> Task.andThen (\() -> FileSystem.rename tmpPath model.filePath)
-                                    |> Task.Extra.andAlwaysThen
-                                        (\x ->
-                                            case x of
-                                                Ok () ->
-                                                    FileSystem.Handle.close handle
-                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.succeed newHandle)
-
-                                                Err x2 ->
-                                                    FileSystem.Handle.close newHandle
-                                                        |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
-                                        )
-                            )
-                        |> Task.attempt StateSaved
+                    , FileSystem.Handle.write data handle
+                        |> Task.attempt MessagesSaved
                     )
 
-                Err _ ->
-                    Platform.Extra.noOperation model
+        Err _ ->
+            Platform.Extra.noOperation model
 
-        _ ->
+
+saveState : Config msg a -> StateAndHandle a -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
+saveState config a model =
+    case a.handle of
+        Ok handle ->
+            let
+                data : String
+                data =
+                    StateMachine.File.create [] a.state
+                        |> StateMachine.File.toString config.codec config.msgCodec
+
+                tmpPath : FileSystem.Path
+                tmpPath =
+                    FileSystem.stringToPath (FileSystem.pathToString model.filePath ++ ".tmp")
+            in
+            ( { model
+                | state = Ok { a | handle = Err handle }
+                , saveQueue = []
+                , saveMode = SaveMessages
+              }
+            , FileSystem.Handle.open fileMode tmpPath
+                |> Task.andThen
+                    (\newHandle ->
+                        FileSystem.Handle.write data newHandle
+                            |> Task.andThen (\() -> FileSystem.rename tmpPath model.filePath)
+                            |> Task.Extra.andAlwaysThen
+                                (\x ->
+                                    case x of
+                                        Ok () ->
+                                            FileSystem.Handle.close handle
+                                                |> Task.Extra.andAlwaysThen (\_ -> Task.succeed newHandle)
+
+                                        Err x2 ->
+                                            FileSystem.Handle.close newHandle
+                                                |> Task.Extra.andAlwaysThen (\_ -> Task.fail x2)
+                                )
+                    )
+                |> Task.attempt StateSaved
+            )
+
+        Err _ ->
             Platform.Extra.noOperation model
 
 
