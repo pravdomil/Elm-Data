@@ -77,18 +77,6 @@ type alias Model msg a =
     }
 
 
-init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
-init config flags =
-    ( Model
-        (Err NoImage)
-        (config.flagsToFilePath flags)
-        [ config.flagsReceived flags ]
-        SaveMessages
-    , Process.Extra.onBeforeExit BeforeExit
-    )
-        |> Platform.Extra.andThen (load config)
-
-
 
 --
 
@@ -133,6 +121,22 @@ type Msg a msg
     | BeforeExit
 
 
+
+--
+
+
+init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
+init config flags =
+    ( Model
+        (Err NoImage)
+        (config.flagsToFilePath flags)
+        [ config.flagsReceived flags ]
+        SaveMessages
+    , Process.Extra.onBeforeExit BeforeExit
+    )
+        |> Platform.Extra.andThen (load config)
+
+
 update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 update config msg model =
     (case msg of
@@ -166,6 +170,25 @@ update config msg model =
 updateByMessage : Config msg a -> msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
 updateByMessage config a model =
     update config (MessageReceived a) model
+
+
+subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
+subscriptions config a =
+    case a.image of
+        Ok b ->
+            Sub.batch
+                [ case config.toLifecycle b.image of
+                    StateMachine.Lifecycle.Running ->
+                        Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
+
+                    StateMachine.Lifecycle.Exiting ->
+                        Sub.none
+                , config.subscriptions b.image
+                    |> Sub.map MessageReceived
+                ]
+
+        Err _ ->
+            Sub.none
 
 
 
@@ -529,29 +552,6 @@ log a model =
     , logMessage a
         |> Task.attempt (\_ -> NothingHappened)
     )
-
-
-
---
-
-
-subscriptions : Config msg a -> Model msg a -> Sub (Msg a msg)
-subscriptions config a =
-    case a.image of
-        Ok b ->
-            Sub.batch
-                [ case config.toLifecycle b.image of
-                    StateMachine.Lifecycle.Running ->
-                        Time.every (1000 * 60 * 60 * 24) (\_ -> DayElapsed)
-
-                    StateMachine.Lifecycle.Exiting ->
-                        Sub.none
-                , config.subscriptions b.image
-                    |> Sub.map MessageReceived
-                ]
-
-        Err _ ->
-            Sub.none
 
 
 
