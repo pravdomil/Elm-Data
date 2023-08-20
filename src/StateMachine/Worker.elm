@@ -261,16 +261,7 @@ stateLoaded config result model =
                     )
                         |> Platform.Extra.andThen
                             (\x ->
-                                let
-                                    message : LogMessage.LogMessage
-                                    message =
-                                        LogMessage.LogMessage
-                                            LogMessage.Info
-                                            "State Machine"
-                                            "State was loaded."
-                                            Nothing
-                                in
-                                log message x
+                                log (LogMessage.LogMessage LogMessage.Info "State Machine" "State was loaded." Nothing) x
                             )
 
                 Nothing ->
@@ -286,16 +277,7 @@ stateLoaded config result model =
                     )
                         |> Platform.Extra.andThen
                             (\x ->
-                                let
-                                    message : LogMessage.LogMessage
-                                    message =
-                                        LogMessage.LogMessage
-                                            LogMessage.Info
-                                            "State Machine"
-                                            "State was initialized."
-                                            Nothing
-                                in
-                                log message x
+                                log (LogMessage.LogMessage LogMessage.Info "State Machine" "State was initialized." Nothing) x
                             )
 
         Err b ->
