@@ -64,10 +64,10 @@ init config flags =
         ( server, cmd ) =
             Http.Server.Worker.init (config.flagsToServerOptions flags)
 
-        ( image, cmd2 ) =
+        ( state, cmd2 ) =
             StateMachine.Worker.init config.state flags
     in
-    ( Model server image
+    ( Model server state
     , Cmd.batch
         [ cmd |> Cmd.map ServerMessageReceived
         , cmd2 |> Cmd.map StateMessageReceived
