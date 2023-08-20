@@ -83,7 +83,6 @@ init config flags =
 type Msg a msg
     = ServerMessageReceived Http.Server.Worker.Msg
     | StateMessageReceived (StateMachine.Worker.Msg a msg)
-    | ExitRequested
 
 
 update : Config msg a -> Msg a msg -> Model msg a -> ( Model msg a, Cmd (Msg a msg) )
@@ -104,10 +103,6 @@ update config msg model =
 
         StateMessageReceived b ->
             updateImage config b model
-
-        ExitRequested ->
-            closeServer model
-                |> Platform.Extra.andThen (updateImageByMessage config config.exitRequested)
 
 
 
