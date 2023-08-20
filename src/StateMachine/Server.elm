@@ -96,7 +96,7 @@ update config msg =
                             updateStateByMessage config (config.requestReceived c)
 
                         _ ->
-                            Nothing
+                            Platform.Extra.noOperation
                     )
 
         StateMessageReceived b ->
