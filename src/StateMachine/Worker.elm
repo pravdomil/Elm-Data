@@ -137,7 +137,9 @@ init config flags =
     ( Model
         (Err NotLoaded)
         (config.flagsToFilePath flags)
-        [ config.flagsReceived flags ]
+        [ config.lifecycleChanged StateMachine.Lifecycle.Running
+        , config.flagsReceived flags
+        ]
         SaveMessages
     , Process.Extra.onBeforeExit ExitRequested
     )
@@ -213,13 +215,7 @@ load config model =
 
                 _ ->
                     StateMachine.File.fromString config.codec config.msgCodec b
-                        |> Result.map
-                            (\x ->
-                                x
-                                    |> StateMachine.File.state config.update
-                                    |> config.lifecycleChanged (\_ -> StateMachine.Lifecycle.Running)
-                                    |> Just
-                            )
+                        |> Result.map (\x -> Just (StateMachine.File.state config.update x))
     in
     case model.state of
         Err NotLoaded ->
