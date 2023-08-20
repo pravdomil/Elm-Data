@@ -78,7 +78,7 @@ idsByIndex config a (Database index _) =
         toOrder ( i, _ ) =
             compare a_ (config.indexToComparable i)
     in
-    index |> Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) []
+    Dict.Any.foldrByOrder toOrder (\( _, k ) _ acc -> k :: acc) [] index
 
 
 
