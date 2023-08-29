@@ -1,18 +1,17 @@
 module StateMachine.Worker exposing
-    ( Config, flagsToFilePath, worker
+    ( Config, flagsToFilepath, worker
     , Model, Msg(..), init, update, subscriptions
     )
 
 {-|
 
-@docs Config, flagsToFilePath, worker
+@docs Config, flagsToFilepath, worker
 
 @docs Model, Msg, init, update, subscriptions
 
 -}
 
 import Codec
-import Console
 import FileSystem
 import FileSystem.Handle
 import JavaScript
@@ -38,7 +37,7 @@ type alias Config msg a =
     , msgCodec : Codec.Codec msg
 
     --
-    , flagsToFilePath : Json.Decode.Value -> FileSystem.Path
+    , flagsToFilepath : Json.Decode.Value -> FileSystem.Path
     , flagsReceived : Json.Decode.Value -> msg
 
     --
@@ -47,11 +46,11 @@ type alias Config msg a =
     }
 
 
-flagsToFilePath : Json.Decode.Value -> FileSystem.Path
-flagsToFilePath a =
+flagsToFilepath : Json.Decode.Value -> FileSystem.Path
+flagsToFilepath a =
     FileSystem.stringToPath
         (Result.withDefault "state_machine.jsonl"
-            (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "stateMachineFilePath" ] Json.Decode.string) a)
+            (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "env", "stateMachineFilepath" ] Json.Decode.string) a)
         )
 
 
@@ -73,7 +72,7 @@ worker config =
 
 
 type alias Model msg a =
-    { filePath : FileSystem.Path
+    { filepath : FileSystem.Path
     , state : Result StateError (State a)
     , messageQueue : List msg
     }
@@ -138,7 +137,7 @@ type Msg a msg
 init : Config msg a -> Json.Decode.Value -> ( Model msg a, Cmd (Msg a msg) )
 init config flags =
     ( Model
-        (config.flagsToFilePath flags)
+        (config.flagsToFilepath flags)
         (Err NotLoaded)
         [ config.lifecycleChanged StateMachine.Lifecycle.Running
         , config.flagsReceived flags
@@ -228,7 +227,7 @@ load config model =
     case model.state of
         Err NotLoaded ->
             ( { model | state = Err Loading }
-            , FileSystem.Handle.open fileMode model.filePath
+            , FileSystem.Handle.open fileMode model.filepath
                 |> Task.andThen
                     (\handle ->
                         FileSystem.Handle.read handle
@@ -415,7 +414,7 @@ saveState config a model =
 
                 tmpPath : FileSystem.Path
                 tmpPath =
-                    FileSystem.stringToPath (FileSystem.pathToString model.filePath ++ ".tmp")
+                    FileSystem.stringToPath (FileSystem.pathToString model.filepath ++ ".tmp")
             in
             ( { model
                 | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
@@ -425,7 +424,7 @@ saveState config a model =
                 |> Task.andThen
                     (\newHandle ->
                         FileSystem.Handle.write data newHandle
-                            |> Task.andThen (\() -> FileSystem.rename tmpPath model.filePath)
+                            |> Task.andThen (\() -> FileSystem.rename tmpPath model.filepath)
                             |> Task.Extra.andAlwaysThen
                                 (\x ->
                                     case x of

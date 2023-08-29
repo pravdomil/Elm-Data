@@ -20,7 +20,7 @@ config =
         subscriptions
         modelCodec
         msgCodec
-        StateMachine.Worker.flagsToFilePath
+        StateMachine.Worker.flagsToFilepath
         (\x -> FlagsReceived (Result.withDefault 0 (Json.Decode.decodeValue (Json.Decode.at [ "global", "process", "pid" ] Json.Decode.int) x)))
         .lifecycle
         LifecycleChanged
