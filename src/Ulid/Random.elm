@@ -10,6 +10,14 @@ import Ulid
 
 generate : Task.Task x (Ulid.Ulid a)
 generate =
+    Task.map2
+        Ulid.fromTimeAndRandomness
+        Time.now
+        randomness
+
+
+randomness : Task.Task x ( Int, Int, Int )
+randomness =
     let
         decoder : Json.Decode.Decoder ( Int, Int, Int )
         decoder =
@@ -18,23 +26,16 @@ generate =
                 (Json.Decode.index 0 Json.Decode.int)
                 (Json.Decode.index 1 Json.Decode.int)
                 (Json.Decode.index 2 Json.Decode.int)
-
-        randomness : Task.Task x ( Int, Int, Int )
-        randomness =
-            JavaScript.run
-                "Array.from((typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(new Uint32Array(3)))"
-                Json.Encode.null
-                decoder
-                |> Task.onError
-                    (\_ ->
-                        JavaScript.run
-                            "[Math.random()*2**32, Math.random()*2**32, Math.random()*2**32]"
-                            Json.Encode.null
-                            decoder
-                    )
-                |> Task.onError (\_ -> Task.succeed ( 0, 0, 0 ))
     in
-    Task.map2
-        Ulid.fromTimeAndRandomness
-        Time.now
-        randomness
+    JavaScript.run
+        "Array.from((typeof crypto === 'undefined' ? require('crypto').webcrypto : crypto).getRandomValues(new Uint32Array(3)))"
+        Json.Encode.null
+        decoder
+        |> Task.onError
+            (\_ ->
+                JavaScript.run
+                    "[Math.random()*2**32, Math.random()*2**32, Math.random()*2**32]"
+                    Json.Encode.null
+                    decoder
+            )
+        |> Task.onError (\_ -> Task.succeed ( 0, 0, 0 ))
