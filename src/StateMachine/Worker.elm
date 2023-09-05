@@ -267,7 +267,7 @@ stateLoaded config result model =
                     )
                         |> Platform.Extra.andThen
                             (\x ->
-                                log (LogMessage.LogMessage LogMessage.Info "State Machine" "State was loaded." Nothing) x
+                                log (LogMessage.Info [ "State Machine", "State was loaded." ]) x
                             )
 
                 Nothing ->
@@ -282,7 +282,7 @@ stateLoaded config result model =
                     )
                         |> Platform.Extra.andThen
                             (\x ->
-                                log (LogMessage.LogMessage LogMessage.Info "State Machine" "State was initialized." Nothing) x
+                                log (LogMessage.Info [ "State Machine", "State was initialized." ]) x
                             )
 
         Err b ->
@@ -294,7 +294,7 @@ stateLoaded config result model =
             )
                 |> Platform.Extra.andThen
                     (\x ->
-                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot load state." (Just (LogMessage.JavaScriptError b))) x
+                        log (LogMessage.Error [ "State Machine", "Cannot load state.", LogMessage.encodeJavaScriptError b ]) x
                     )
 
 
@@ -398,7 +398,7 @@ messageSaved result model =
             )
                 |> Platform.Extra.andThen
                     (\x ->
-                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save messages." (Just (LogMessage.JavaScriptError b))) x
+                        log (LogMessage.Error [ "State Machine", "Cannot save messages.", LogMessage.encodeJavaScriptError b ]) x
                     )
 
 
@@ -461,7 +461,7 @@ stateSaved result model =
             )
                 |> Platform.Extra.andThen
                     (\x ->
-                        log (LogMessage.LogMessage LogMessage.Info "State Machine" "State saved." Nothing) x
+                        log (LogMessage.Info [ "State Machine", "State saved." ]) x
                     )
 
         Err b ->
@@ -471,7 +471,7 @@ stateSaved result model =
             )
                 |> Platform.Extra.andThen
                     (\x ->
-                        log (LogMessage.LogMessage LogMessage.Error "State Machine" "Cannot save state." (Just (LogMessage.JavaScriptError b))) x
+                        log (LogMessage.Error [ "State Machine", "Cannot save state.", LogMessage.encodeJavaScriptError b ]) x
                     )
 
 
