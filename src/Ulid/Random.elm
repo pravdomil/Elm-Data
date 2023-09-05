@@ -13,11 +13,11 @@ generate =
     Task.map2
         Ulid.fromTimeAndRandomness
         Time.now
-        randomness
+        randomInts
 
 
-randomness : Task.Task x ( Int, Int, Int )
-randomness =
+randomInts : Task.Task x ( Int, Int, Int )
+randomInts =
     let
         decoder : Json.Decode.Decoder ( Int, Int, Int )
         decoder =
