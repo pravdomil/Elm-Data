@@ -3,16 +3,13 @@ module LogMessage exposing (..)
 import Codec
 import Console
 import JavaScript
-import JavaScript.Codec
-import Json.Decode
 import Task
 
 
 type alias LogMessage =
     { type_ : Type
     , author : String
-    , message : String
-    , detail : Maybe Detail
+    , messages : List String
     }
 
 
@@ -48,42 +45,13 @@ type Type
 --
 
 
-type Detail
-    = DecodeError Json.Decode.Error
-    | JavaScriptError JavaScript.Error
-
-
-
---
-
-
 codec : Codec.Codec LogMessage
 codec =
-    Codec.record (\x1 x2 x3 x4 -> { type_ = x1, author = x2, message = x3, detail = x4 })
+    Codec.record (\x1 x2 x3 -> { type_ = x1, author = x2, messages = x3 })
         |> Codec.field .type_ typeCodec
         |> Codec.field .author Codec.string
-        |> Codec.field .message Codec.string
-        |> Codec.field .detail (Codec.maybe detailCodec)
+        |> Codec.field .messages (Codec.list Codec.string)
         |> Codec.buildRecord
-
-
-detailCodec : Codec.Codec Detail
-detailCodec =
-    Codec.lazy
-        (\() ->
-            Codec.custom
-                (\fn1 fn2 x ->
-                    case x of
-                        DecodeError x1 ->
-                            fn1 x1
-
-                        JavaScriptError x1 ->
-                            fn2 x1
-                )
-                |> Codec.variant1 DecodeError JavaScript.Codec.jsonDecodeErrorCodec
-                |> Codec.variant1 JavaScriptError JavaScript.Codec.errorCodec
-                |> Codec.buildCustom
-        )
 
 
 typeCodec : Codec.Codec Type
