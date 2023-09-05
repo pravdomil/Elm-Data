@@ -27,14 +27,14 @@ log a =
             Console.logError (Codec.encodeToString codec a)
 
 
-jsonDecodeError : Type -> String -> List String -> Json.Decode.Error -> LogMessage
-jsonDecodeError a b c d =
-    LogMessage a b (c ++ [ Codec.encodeToString JavaScript.Codec.jsonDecodeErrorCodec d ])
+jsonDecodeError : (List String -> LogMessage) -> List String -> Json.Decode.Error -> LogMessage
+jsonDecodeError fn a b =
+    fn (a ++ [ Codec.encodeToString JavaScript.Codec.jsonDecodeErrorCodec b ])
 
 
-javaScriptError : Type -> String -> List String -> JavaScript.Error -> LogMessage
-javaScriptError a b c d =
-    LogMessage a b (c ++ [ Codec.encodeToString JavaScript.Codec.errorCodec d ])
+javaScriptError : (List String -> LogMessage) -> List String -> JavaScript.Error -> LogMessage
+javaScriptError fn a b =
+    fn (a ++ [ Codec.encodeToString JavaScript.Codec.errorCodec b ])
 
 
 
