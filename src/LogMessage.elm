@@ -31,7 +31,7 @@ log a =
                 Error ->
                     Console.logError
     in
-    fn (Codec.encodeToString 0 codec a)
+    fn (Codec.encodeToString codec a)
 
 
 
