@@ -3,6 +3,8 @@ module LogMessage exposing (..)
 import Codec
 import Console
 import JavaScript
+import JavaScript.Codec
+import Json.Decode
 import Task
 
 
@@ -29,6 +31,16 @@ log a =
                     Console.logError
     in
     fn (Codec.encodeToString codec a)
+
+
+jsonDecodeError : Type -> String -> List String -> Json.Decode.Error -> LogMessage
+jsonDecodeError a b c d =
+    LogMessage a b (c ++ [ Codec.encodeToString JavaScript.Codec.jsonDecodeErrorCodec d ])
+
+
+javaScriptError : Type -> String -> List String -> JavaScript.Error -> LogMessage
+javaScriptError a b c d =
+    LogMessage a b (c ++ [ Codec.encodeToString JavaScript.Codec.errorCodec d ])
 
 
 
