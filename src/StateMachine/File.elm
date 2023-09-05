@@ -42,6 +42,6 @@ state updateFn (File messages a) =
 toString : Codec.Codec a -> Codec.Codec msg -> File msg a -> String
 toString codecA codecMsg (File messages a) =
     String.join "\n"
-        (Codec.encodeToString 0 codecA a
-            :: List.map (Codec.encodeToString 0 codecMsg) messages
+        (Codec.encodeToString codecA a
+            :: List.map (Codec.encodeToString codecMsg) messages
         )
