@@ -369,7 +369,7 @@ saveMessages config a model =
                         data =
                             String.join ""
                                 (List.map
-                                    (\x -> "\n" ++ Codec.encodeToString 0 config.msgCodec x)
+                                    (\x -> "\n" ++ Codec.encodeToString config.msgCodec x)
                                     (List.reverse model.messageQueue)
                                 )
                     in
