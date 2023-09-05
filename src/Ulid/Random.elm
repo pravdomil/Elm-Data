@@ -10,10 +10,7 @@ import Ulid
 
 generate : Task.Task x (Ulid.Ulid a)
 generate =
-    Task.map2
-        Ulid.fromTimeAndRandomness
-        Time.now
-        randomInts
+    Task.map2 Ulid.fromTimeAndRandomness Time.now randomInts
 
 
 randomInts : Task.Task x ( Int, Int, Int )
