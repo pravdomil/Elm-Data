@@ -5,7 +5,6 @@ import Console
 import JavaScript
 import JavaScript.Codec
 import Json.Decode
-import LogMessage
 import Task
 
 
@@ -32,7 +31,7 @@ log a =
                 Error ->
                     Console.logError
     in
-    fn (Codec.encodeToString 0 LogMessage.codec a)
+    fn (Codec.encodeToString 0 codec a)
 
 
 
