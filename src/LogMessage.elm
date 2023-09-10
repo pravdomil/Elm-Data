@@ -2,6 +2,8 @@ module LogMessage exposing (..)
 
 import Codec
 import Console
+import Http
+import Http.Codec
 import JavaScript
 import JavaScript.Codec
 import Json.Decode
@@ -30,6 +32,11 @@ log a =
 encodeJsonDecodeError : Json.Decode.Error -> String
 encodeJsonDecodeError a =
     Codec.encodeToString JavaScript.Codec.jsonDecodeErrorCodec a
+
+
+encodeHttpError : Http.Error -> String
+encodeHttpError a =
+    Codec.encodeToString Http.Codec.errorCodec a
 
 
 encodeJavaScriptError : JavaScript.Error -> String
