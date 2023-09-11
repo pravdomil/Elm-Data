@@ -1,4 +1,4 @@
-module Ulid exposing (Ulid, codec, fromTimeAndRandomness, toAny, toId, toString)
+module Ulid exposing (Randomness, Ulid, codec, fromTimeAndRandomness, toAny, toId, toString)
 
 import Bitwise
 import Codec
@@ -23,8 +23,8 @@ type Ulid a
     = Ulid String
 
 
-fromTimeAndRandomness : Time.Posix -> ( Int, Int, Int ) -> Ulid a
-fromTimeAndRandomness time ( random1, random2, random3 ) =
+fromTimeAndRandomness : Time.Posix -> Randomness -> Ulid a
+fromTimeAndRandomness time randomness =
     let
         encode18bits : Int -> String
         encode18bits b =
@@ -42,9 +42,9 @@ fromTimeAndRandomness time ( random1, random2, random3 ) =
         (encode18bits (Time.posixToMillis time // 0x40000000)
             ++ encode30bits (Time.posixToMillis time)
             --
-            ++ encode30bits random1
-            ++ encode30bits random2
-            ++ encode20bits random3
+            ++ encode30bits randomness.a
+            ++ encode30bits randomness.b
+            ++ encode20bits randomness.c
         )
 
 
@@ -66,3 +66,14 @@ toId a =
 codec : Codec.Codec (Ulid a)
 codec =
     Codec.map toString Ulid Codec.string
+
+
+
+--
+
+
+type alias Randomness =
+    { a : Int
+    , b : Int
+    , c : Int
+    }
