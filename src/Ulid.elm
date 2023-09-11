@@ -1,4 +1,4 @@
-module Ulid exposing (Randomness, Ulid, codec, fromTimeAndRandomness, toAny, toId, toString)
+module Ulid exposing (Randomness, Ulid, codec, fromTimeAndRandomness, randomnessCodec, toAny, toId, toString)
 
 import Bitwise
 import Codec
@@ -77,3 +77,12 @@ type alias Randomness =
     , b : Int
     , c : Int
     }
+
+
+randomnessCodec : Codec.Codec Randomness
+randomnessCodec =
+    Codec.record (\x1 x2 x3 -> { a = x1, b = x2, c = x3 })
+        |> Codec.field .a Codec.int
+        |> Codec.field .b Codec.int
+        |> Codec.field .c Codec.int
+        |> Codec.buildRecord
