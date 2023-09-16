@@ -420,7 +420,7 @@ saveState config a model =
                 | state = Ok { a | handle = Err handle, saveMode = SaveMessages }
                 , messageQueue = []
               }
-            , FileSystem.Handle.open fileMode tmpPath
+            , FileSystem.Handle.open tmpFileMode tmpPath
                 |> Task.andThen
                     (\newHandle ->
                         FileSystem.Handle.write data newHandle
@@ -553,3 +553,8 @@ fileMode =
         FileSystem.Handle.Append
         FileSystem.Handle.CreateIfNotExists
         FileSystem.Handle.DoNotTruncate
+
+
+tmpFileMode : FileSystem.Handle.Mode
+tmpFileMode =
+    { fileMode | truncate = FileSystem.Handle.TruncateBeforeOpen }
